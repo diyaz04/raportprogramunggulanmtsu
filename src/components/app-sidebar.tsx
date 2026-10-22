@@ -55,12 +55,12 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <BookOpenCheck className="size-4" />
               </div>
               <div className="grid flex-1 text-left leading-tight">
                 <span className="truncate text-sm font-semibold">Rapor Unggulan</span>
-                <span className="truncate text-xs text-muted-foreground">MTs KH. A. Wahab Muhsin</span>
+                <span className="truncate text-xs text-sidebar-foreground/70">MTs KH. A. Wahab Muhsin</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -97,7 +97,7 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
                           <Icon />
                           <span>{item.title}</span>
                         </SidebarMenuButton>
-                        <SidebarMenuBadge className="text-[10px] font-medium text-muted-foreground">
+                        <SidebarMenuBadge className="text-[10px] font-medium text-sidebar-foreground/70">
                           Segera
                         </SidebarMenuBadge>
                       </>
@@ -116,15 +116,15 @@ export function AppSidebar({ user }: { user: SidebarUser }) {
             <DropdownMenu>
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
                 <Avatar className="size-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg bg-accent text-xs font-semibold text-accent-foreground">
+                  <AvatarFallback className="rounded-lg bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground">
                     {initials(user.nama)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate text-sm font-medium">{user.nama}</span>
-                  <span className="truncate text-xs text-muted-foreground">{user.roleLabel}</span>
+                  <span className="truncate text-xs text-sidebar-foreground/70">{user.roleLabel}</span>
                 </div>
-                <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
+                <ChevronsUpDown className="ml-auto size-4 text-sidebar-foreground/70" />
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="min-w-56">
                 <div className="px-2 py-1.5">

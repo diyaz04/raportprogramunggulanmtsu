@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { BookOpenCheck, TriangleAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPengaturan } from "@/lib/data/master";
+import { getPengaturanAman } from "@/lib/data/master";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { LoginForm } from "./login-form";
 
@@ -75,7 +75,7 @@ export default function LoginPage(props: PageProps<"/login">) {
 }
 
 async function Logos() {
-  const pengaturan = await ambilPengaturanAman();
+  const pengaturan = await getPengaturanAman();
   if (!pengaturan?.logo_kiri_url && !pengaturan?.logo_kanan_url) return null;
 
   return (
@@ -96,23 +96,13 @@ function LogoBulat({ src }: { src: string | null }) {
 }
 
 async function NamaMadrasah() {
-  const pengaturan = await ambilPengaturanAman();
+  const pengaturan = await getPengaturanAman();
   return <p className="mt-1 text-lg text-white/90">{pengaturan?.nama_madrasah ?? "MTsS KH. A. Wahab Muhsin Sukahideng"}</p>;
 }
 
 async function NamaMadrasahRingkas() {
-  const pengaturan = await ambilPengaturanAman();
+  const pengaturan = await getPengaturanAman();
   return <p className="mt-1 text-sm text-muted-foreground">{pengaturan?.nama_madrasah ?? "MTsS KH. A. Wahab Muhsin Sukahideng"}</p>;
-}
-
-/** Dipanggil dari halaman publik (belum login) — nggak boleh sampai nge-crash kalau Supabase belum siap. */
-async function ambilPengaturanAman() {
-  if (!isSupabaseConfigured) return null;
-  try {
-    return await getPengaturan();
-  } catch {
-    return null;
-  }
 }
 
 async function Notices({ searchParams }: { searchParams: PageProps<"/login">["searchParams"] }) {

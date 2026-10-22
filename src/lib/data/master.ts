@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { Role } from "@/lib/auth";
 
 // Tipe ditulis manual (belum memakai `supabase gen types`).
@@ -189,4 +190,14 @@ export async function getPengaturan(): Promise<Pengaturan> {
     .eq("id", true)
     .single();
   return ambil(data, error, "Gagal memuat pengaturan");
+}
+
+/** Dipanggil dari tempat yang bisa diakses TANPA login (halaman publik, favicon) — nggak boleh sampai nge-crash. */
+export async function getPengaturanAman(): Promise<Pengaturan | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    return await getPengaturan();
+  } catch {
+    return null;
+  }
 }

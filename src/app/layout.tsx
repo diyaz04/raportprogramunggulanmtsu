@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Amiri, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { FaviconDinamis } from "@/components/favicon-dinamis";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -35,6 +37,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${fontSans.variable} ${fontArabic.variable} ${fontMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <Suspense fallback={null}>
+          <FaviconDinamis />
+        </Suspense>
         <TooltipProvider>{children}</TooltipProvider>
         <Toaster theme="light" position="top-center" richColors />
       </body>

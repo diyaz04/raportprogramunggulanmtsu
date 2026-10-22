@@ -15,17 +15,14 @@ export function StatistikChart({ data }: { data: StatistikBar[] }) {
         </span>
       </div>
 
-      <div className="flex h-40 items-end gap-3">
+      <div className="flex items-end gap-3">
         {data.map((d) => (
           <div key={d.label} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
             <div
-              className="grid w-full max-w-10 grid-rows-[1fr_auto] gap-0.5 rounded-sm"
-              style={{ height: "100%" }}
+              className="flex h-32 w-full max-w-10 flex-col justify-end overflow-hidden rounded-sm bg-muted-foreground/20"
               title={`${d.label}: ${d.tuntas} tuntas, ${d.belumTuntas} belum tuntas`}
             >
-              <div className="flex flex-col justify-end overflow-hidden rounded-t-sm bg-muted-foreground/20">
-                <div className="rounded-t-sm bg-emerald-600" style={{ height: `${d.persenTuntas}%` }} />
-              </div>
+              <div className="w-full rounded-t-sm bg-emerald-600" style={{ height: `${d.persenTuntas}%` }} />
             </div>
             <p className="w-full truncate text-center text-[0.65rem] text-muted-foreground">{d.label}</p>
           </div>
