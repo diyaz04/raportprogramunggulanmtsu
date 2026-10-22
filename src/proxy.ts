@@ -7,7 +7,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Semua path kecuali aset statis dan gambar.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // Semua path kecuali aset statis, gambar, dan favicon dinamis (app/icon.tsx) —
+    // favicon HARUS bisa diakses tanpa login, sama kayak favicon.ico statis.
+    "/((?!_next/static|_next/image|favicon.ico|icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
