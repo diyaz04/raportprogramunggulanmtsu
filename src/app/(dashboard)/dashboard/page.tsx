@@ -87,7 +87,7 @@ async function Konten({ searchParams }: { searchParams: PageProps<"/dashboard">[
 
     return (
       <div className="grid gap-6">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <StatCard icon={LayoutGrid} label="Program Diampu" value={program.length} warna={WARNA_PROGRAM_AKTIF} />
           <StatCard icon={Users} label="Total Peserta Bimbingan" value={totalPeserta} warna={WARNA_SISWA} />
           <StatCard icon={TrendingUp} label="Rata-rata Progres Nilai" value={`${rataProgres}%`} warna={WARNA_GURU} />
@@ -101,7 +101,7 @@ async function Konten({ searchParams }: { searchParams: PageProps<"/dashboard">[
           {program.length === 0 ? (
             <EmptyState title="Belum ada program untuk Anda" description="Anda belum ditugaskan ke program apa pun pada periode ini." />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               {program.map((p, i) => (
                 <ProgramProgressCard
                   key={p.id}
@@ -142,7 +142,7 @@ async function Konten({ searchParams }: { searchParams: PageProps<"/dashboard">[
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard icon={Users} label="Total Siswa" value={statistik.totalSiswa} warna={WARNA_SISWA} href="/master/siswa" />
         <StatCard icon={GraduationCap} label="Total Guru" value={statistik.totalGuru} warna={WARNA_GURU} href="/master/guru" />
         <StatCard icon={LayoutGrid} label="Program Aktif" value={statistik.jumlahProgramAktif} warna={WARNA_PROGRAM_AKTIF} href="/program" />
@@ -158,7 +158,7 @@ async function Konten({ searchParams }: { searchParams: PageProps<"/dashboard">[
           {program.length === 0 ? (
             <EmptyState title="Belum ada program" description="Tambahkan program di Master Data → Program." />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               {program.map((p, i) => (
                 <ProgramProgressCard
                   key={p.id}
