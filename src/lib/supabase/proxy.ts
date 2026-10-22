@@ -2,8 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv, isSupabaseConfigured } from "./env";
 
-// Halaman yang boleh dibuka tanpa login.
-const PUBLIC_PATHS = ["/login", "/verifikasi"];
+// Halaman/route yang boleh dibuka tanpa login — termasuk /api/cron, karena Vercel Cron
+// manggil endpoint itu server-to-server tanpa cookie sesi sama sekali.
+const PUBLIC_PATHS = ["/login", "/verifikasi", "/api/cron"];
 
 const isPublic = (pathname: string) =>
   PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
