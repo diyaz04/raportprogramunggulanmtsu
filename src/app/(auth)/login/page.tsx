@@ -10,15 +10,54 @@ export const metadata: Metadata = { title: "Masuk" };
 
 const NAMA_FALLBACK = "MTsS KH. A. Wahab Muhsin Sukahideng";
 
-/** SATU fetch pengaturan dipakai bareng ke semua bagian branding (banner desktop, banner
- * mobile, judul kecil di atas form) — sengaja BUKAN beberapa Suspense boundary terpisah yang
- * masing-masing manggil createClient()/connection() sendiri-sendiri (pola lama). Begitu halaman
- * ini punya 2 salinan banner (desktop+mobile), beberapa Suspense boundary dinamis yang jalan
- * PARALEL di render yang sama ternyata bikin Next 16 Cache Components gagal nyelesaiin sebagian
- * boundary-nya ("could not finish this Suspense boundary"). Datanya kecil & jarang berubah,
- * jadi 1 fetch di awal, dipakai sebagai variabel biasa, jauh lebih aman.
- */
-export default async function LoginPage(props: PageProps<"/login">) {
+export default function LoginPage(props: PageProps<"/login">) {
+  return (
+    <main className="grid min-h-svh lg:grid-cols-2">
+      {/* SATU Suspense buat SEMUA branding dinamis (banner desktop + mobile) — baca pengaturan
+       * di luar Suspense (atau beberapa Suspense paralel) sempat dicoba, keduanya BERMASALAH:
+       * di luar Suspense sama sekali gagal di `next build` ("uncached/runtime data outside of
+       * Suspense"); beberapa Suspense paralel yang masing-masing connection() sendiri bikin
+       * Next Cache Components gagal nyelesaiin sebagian boundary-nya pas dev. Ini titik amannya. */}
+      <Suspense fallback={null}>
+        <Branding />
+      </Suspense>
+
+      <div className="flex flex-col items-center justify-center gap-8 px-4 py-10">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 hidden flex-col items-center text-center lg:flex">
+            <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+              <BookOpenCheck className="size-6" />
+            </div>
+            <h2 className="text-xl font-semibold tracking-tight">Rapor Program Unggulan</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{NAMA_FALLBACK}</p>
+          </div>
+
+          <Card className="shadow-none">
+            <CardHeader>
+              <CardTitle>Masuk</CardTitle>
+              <CardDescription>Gunakan akun guru atau admin yang diberikan madrasah.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {/* searchParams adalah data request, jadi dibaca di dalam Suspense */}
+              <Suspense fallback={null}>
+                <Notices searchParams={props.searchParams} />
+              </Suspense>
+              <LoginForm disabled={!isSupabaseConfigured} />
+            </CardContent>
+          </Card>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">Lupa kata sandi? Hubungi admin madrasah.</p>
+        </div>
+
+        <p className="hidden text-center text-xs italic text-muted-foreground lg:block">
+          Bersama membangun generasi berakhlak, berilmu, dan berprestasi
+        </p>
+      </div>
+    </main>
+  );
+}
+
+async function Branding() {
   const pengaturan = await getPengaturanAman();
   const nama = pengaturan?.nama_madrasah ?? NAMA_FALLBACK;
   const logos = pengaturan?.logo_kiri_url || pengaturan?.logo_kanan_url ? (
@@ -30,7 +69,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
   ) : null;
 
   return (
-    <main className="grid min-h-svh lg:grid-cols-2">
+    <>
       {/* Desktop: panel kiri penuh */}
       <div className="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-10 lg:text-white">
         {/* eslint-disable-next-line @next/next/no-img-element -- foto madrasah statis, bukan perlu optimasi next/image */}
@@ -68,39 +107,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
           </div>
         </div>
       </div>
-
-      <div className="flex flex-col items-center justify-center gap-8 px-4 py-10">
-        <div className="w-full max-w-sm">
-          <div className="mb-8 hidden flex-col items-center text-center lg:flex">
-            <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-              <BookOpenCheck className="size-6" />
-            </div>
-            <h2 className="text-xl font-semibold tracking-tight">Rapor Program Unggulan</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{nama}</p>
-          </div>
-
-          <Card className="shadow-none">
-            <CardHeader>
-              <CardTitle>Masuk</CardTitle>
-              <CardDescription>Gunakan akun guru atau admin yang diberikan madrasah.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              {/* searchParams adalah data request, jadi dibaca di dalam Suspense */}
-              <Suspense fallback={null}>
-                <Notices searchParams={props.searchParams} />
-              </Suspense>
-              <LoginForm disabled={!isSupabaseConfigured} />
-            </CardContent>
-          </Card>
-
-          <p className="mt-6 text-center text-xs text-muted-foreground">Lupa kata sandi? Hubungi admin madrasah.</p>
-        </div>
-
-        <p className="hidden text-center text-xs italic text-muted-foreground lg:block">
-          Bersama membangun generasi berakhlak, berilmu, dan berprestasi
-        </p>
-      </div>
-    </main>
+    </>
   );
 }
 
