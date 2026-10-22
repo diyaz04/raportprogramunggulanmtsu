@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Field } from "@/components/form-dialog";
@@ -17,6 +17,24 @@ export function LegerForm({
   daftarProgram: { kode: string; nama: string }[];
 }) {
   const [mengunduh, setMengunduh] = useState(false);
+  const [progres, setProgres] = useState(0);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Progres di sini CUMA animasi/estimasi (server nggak ngirim progres beneran) — jadi
+  // sengaja "merayap" mendekati 90% terus mentok nunggu, bukan nunjuk persen pasti.
+  function mulaiProgresSimulasi() {
+    setProgres(5);
+    timer.current = setInterval(() => {
+      setProgres((p) => (p >= 90 ? p : p + (90 - p) * 0.08 + 0.3));
+    }, 200);
+  }
+
+  function hentikanProgresSimulasi() {
+    if (timer.current) clearInterval(timer.current);
+    timer.current = null;
+  }
+
+  useEffect(() => hentikanProgresSimulasi, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,6 +45,7 @@ export function LegerForm({
     });
 
     setMengunduh(true);
+    mulaiProgresSimulasi();
     try {
       const res = await fetch(`/api/leger?${params.toString()}`);
       if (!res.ok) {
@@ -38,6 +57,10 @@ export function LegerForm({
       const cocok = /filename="?([^"]+)"?/.exec(res.headers.get("Content-Disposition") ?? "");
       const namaFile = cocok?.[1] ?? "Leger.xlsx";
 
+      hentikanProgresSimulasi();
+      setProgres(100);
+      await new Promise((r) => setTimeout(r, 250));
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -47,7 +70,9 @@ export function LegerForm({
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gagal mengunduh leger");
     } finally {
+      hentikanProgresSimulasi();
       setMengunduh(false);
+      setProgres(0);
     }
   }
 
@@ -74,10 +99,20 @@ export function LegerForm({
         </NativeSelect>
       </Field>
 
-      <Button type="submit" className="w-fit" disabled={mengunduh}>
-        {mengunduh ? <Loader2 className="animate-spin" /> : <Download />}
-        {mengunduh ? "Menyiapkan file…" : "Unduh Leger"}
-      </Button>
+      <div className="grid gap-2">
+        <Button type="submit" className="w-fit" disabled={mengunduh}>
+          {mengunduh ? <Loader2 className="animate-spin" /> : <Download />}
+          {mengunduh ? "Menyiapkan file…" : "Unduh Leger"}
+        </Button>
+        {mengunduh ? (
+          <div className="h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-emerald-600 transition-[width] duration-200 ease-out"
+              style={{ width: `${progres}%` }}
+            />
+          </div>
+        ) : null}
+      </div>
     </form>
   );
 }
