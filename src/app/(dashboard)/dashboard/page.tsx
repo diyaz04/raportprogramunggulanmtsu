@@ -1,48 +1,59 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import type { Metadata } from "next";
+import { Building2, Calendar, GraduationCap, LayoutGrid, TrendingUp, Users } from "lucide-react";
 import { EmptyState } from "@/components/page-header";
 import { PeriodeSelect } from "@/components/periode-select";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ROLE_LABEL, getCurrentUser } from "@/lib/auth";
-import { getPeriodeList, labelPeriode } from "@/lib/data/master";
+import { AktivitasTerbaru } from "@/components/dashboard/aktivitas-terbaru";
+import { HeroBanner } from "@/components/dashboard/hero-banner";
+import { InfoSistemCard, type InfoBaris } from "@/components/dashboard/info-sistem-card";
+import { ProgramProgressCard } from "@/components/dashboard/program-progress-card";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { StatistikChart, type StatistikBar } from "@/components/dashboard/statistik-chart";
+import { getCurrentUser } from "@/lib/auth";
+import { getAktivitasTerbaru, getStatistikSekolah, getTuntasPerProgram } from "@/lib/data/dashboard";
+import { getPengaturan, getPeriodeList, labelPeriode } from "@/lib/data/master";
 import { getProgramIdUntukGuru, getProgramList } from "@/lib/data/program";
-import { getProgresProgram, STATUS_RAPOR_LABEL, type StatusRapor } from "@/lib/data/rapor";
+import { getProgresProgram } from "@/lib/data/rapor";
+import type { WarnaProgram } from "@/lib/program-visual";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-const WARNA_STATUS: Record<StatusRapor, string> = {
-  draft: "bg-muted text-muted-foreground",
-  review: "border-amber-300 bg-amber-50 text-amber-800",
-  disetujui: "border-sky-300 bg-sky-50 text-sky-800",
-  terkunci: "border-emerald-300 bg-emerald-50 text-emerald-800",
-};
+const MOTTO = "Bersama membangun generasi berakhlak, berilmu, dan berprestasi";
+
+const WARNA_SISWA: WarnaProgram = { bg: "bg-emerald-100", text: "text-emerald-700", ring: "bg-emerald-600" };
+const WARNA_GURU: WarnaProgram = { bg: "bg-sky-100", text: "text-sky-700", ring: "bg-sky-600" };
+const WARNA_PROGRAM_AKTIF: WarnaProgram = { bg: "bg-amber-100", text: "text-amber-700", ring: "bg-amber-600" };
+const WARNA_KELAS: WarnaProgram = { bg: "bg-violet-100", text: "text-violet-700", ring: "bg-violet-600" };
 
 export default function DashboardPage(props: PageProps<"/dashboard">) {
   return (
-    <div className="mx-auto grid max-w-5xl gap-6">
-      <Suspense fallback={<Skeleton className="h-16 w-full max-w-md" />}>
-        <Greeting />
+    <div className="mx-auto grid max-w-6xl gap-6">
+      <Suspense fallback={<Skeleton className="h-48 w-full rounded-2xl" />}>
+        <Hero />
       </Suspense>
-      <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-        <Progres searchParams={props.searchParams} />
+      <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+        <Konten searchParams={props.searchParams} />
       </Suspense>
     </div>
   );
 }
 
-async function Greeting() {
+async function Hero() {
   const user = await getCurrentUser();
-  return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Assalamu&rsquo;alaikum, {user.nama}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Masuk sebagai {ROLE_LABEL[user.role]}.</p>
-    </div>
-  );
+  const pengaturan = await ambilPengaturanAman();
+  return <HeroBanner nama={user.nama} namaMadrasah={pengaturan?.nama_madrasah ?? "MTsS KH. A. Wahab Muhsin Sukahideng"} motto={MOTTO} />;
 }
 
-async function Progres({ searchParams }: { searchParams: PageProps<"/dashboard">["searchParams"] }) {
+async function ambilPengaturanAman() {
+  try {
+    return await getPengaturan();
+  } catch {
+    return null;
+  }
+}
+
+async function Konten({ searchParams }: { searchParams: PageProps<"/dashboard">["searchParams"] }) {
   const user = await getCurrentUser();
   const { periode: periodeParam } = await searchParams;
   const daftarPeriode = await getPeriodeList();
@@ -57,64 +68,124 @@ async function Progres({ searchParams }: { searchParams: PageProps<"/dashboard">
     daftarPeriode[0];
 
   const programSemua = await getProgramList(dipilih.id);
-  const izin = user.role === "guru" ? new Set(await getProgramIdUntukGuru(user.id, dipilih.id)) : null;
-  const program = izin ? programSemua.filter((p) => izin.has(p.id)) : programSemua;
-
+  const izinGuru = user.role === "guru" ? new Set(await getProgramIdUntukGuru(user.id, dipilih.id)) : null;
+  const program = izinGuru ? programSemua.filter((p) => izinGuru.has(p.id)) : programSemua;
   const progres = await Promise.all(program.map((p) => getProgresProgram(p.id, dipilih.id)));
 
+  const periodeSelect = (
+    <PeriodeSelect
+      current={dipilih.id}
+      options={daftarPeriode.map((p) => ({ id: p.id, label: labelPeriode(p) + (p.aktif ? " (aktif)" : "") }))}
+    />
+  );
+
+  if (user.role === "guru") {
+    const totalPeserta = progres.reduce((n, p) => n + p.jumlahPeserta, 0);
+    const totalTerisi = progres.reduce((n, p) => n + p.nilaiTerisi, 0);
+    const totalNilai = progres.reduce((n, p) => n + p.nilaiTotal, 0);
+    const rataProgres = totalNilai > 0 ? Math.round((totalTerisi / totalNilai) * 100) : 0;
+
+    return (
+      <div className="grid gap-6">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard icon={LayoutGrid} label="Program Diampu" value={program.length} warna={WARNA_PROGRAM_AKTIF} />
+          <StatCard icon={Users} label="Total Peserta Bimbingan" value={totalPeserta} warna={WARNA_SISWA} />
+          <StatCard icon={TrendingUp} label="Rata-rata Progres Nilai" value={`${rataProgres}%`} warna={WARNA_GURU} />
+        </div>
+
+        <div className="grid gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-semibold">Program Saya</h2>
+            {periodeSelect}
+          </div>
+          {program.length === 0 ? (
+            <EmptyState title="Belum ada program untuk Anda" description="Anda belum ditugaskan ke program apa pun pada periode ini." />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {program.map((p, i) => (
+                <ProgramProgressCard
+                  key={p.id}
+                  kode={p.kode}
+                  nama={p.nama}
+                  jumlahPeserta={progres[i].jumlahPeserta}
+                  nilaiTerisi={progres[i].nilaiTerisi}
+                  nilaiTotal={progres[i].nilaiTotal}
+                  href={`/nilai/${p.kode}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const [statistik, tuntasPerProgram, aktivitas] = await Promise.all([
+    getStatistikSekolah(dipilih.id),
+    getTuntasPerProgram(program.map((p) => p.id), dipilih.id),
+    getAktivitasTerbaru(),
+  ]);
+
+  const tuntasById = new Map(tuntasPerProgram.map((t) => [t.programId, t]));
+  const statistikBar: StatistikBar[] = program.map((p) => {
+    const t = tuntasById.get(p.id) ?? { tuntas: 0, belumTuntas: 0 };
+    const total = t.tuntas + t.belumTuntas;
+    return { label: p.kode, persenTuntas: total > 0 ? Math.round((t.tuntas / total) * 100) : 0, tuntas: t.tuntas, belumTuntas: t.belumTuntas };
+  });
+
+  const totalPesertaProgram = progres.reduce((n, p) => n + p.jumlahPeserta, 0);
+  const infoBaris: InfoBaris[] = [
+    { icon: Calendar, label: "Periode Aktif", value: labelPeriode(dipilih) },
+    { icon: LayoutGrid, label: "Program Aktif", value: `${statistik.jumlahProgramAktif} program` },
+    { icon: Users, label: "Total Peserta Program", value: `${totalPesertaProgram} peserta` },
+  ];
+
   return (
-    <div className="grid gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-semibold">Progres Program</h2>
-        <PeriodeSelect
-          current={dipilih.id}
-          options={daftarPeriode.map((p) => ({ id: p.id, label: labelPeriode(p) + (p.aktif ? " (aktif)" : "") }))}
-        />
+    <div className="grid gap-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard icon={Users} label="Total Siswa" value={statistik.totalSiswa} warna={WARNA_SISWA} href="/master/siswa" />
+        <StatCard icon={GraduationCap} label="Total Guru" value={statistik.totalGuru} warna={WARNA_GURU} href="/master/guru" />
+        <StatCard icon={LayoutGrid} label="Program Aktif" value={statistik.jumlahProgramAktif} warna={WARNA_PROGRAM_AKTIF} href="/program" />
+        <StatCard icon={Building2} label="Total Kelas" value={statistik.totalKelas} warna={WARNA_KELAS} href="/master/kelas" />
       </div>
 
-      {program.length === 0 ? (
-        <EmptyState title="Belum ada program untuk Anda" description="Anda belum ditugaskan ke program apa pun pada periode ini." />
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {program.map((p, i) => {
-            const pr = progres[i];
-            const persenNilai = pr.nilaiTotal > 0 ? Math.round((pr.nilaiTerisi / pr.nilaiTotal) * 100) : 0;
-            return (
-              <Link key={p.id} href={`/rapor/${p.kode}`} className="grid gap-2 rounded-xl border p-4 transition-colors hover:border-foreground/20 hover:bg-muted/40">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{p.nama}</span>
-                  <span className="text-xs text-muted-foreground">{pr.jumlahPeserta} peserta</span>
-                </div>
-
-                <div className="grid gap-1">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Nilai terisi</span>
-                    <span>
-                      {pr.nilaiTerisi}/{pr.nilaiTotal} ({persenNilai}%)
-                    </span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${persenNilai}%` }} />
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {(Object.keys(STATUS_RAPOR_LABEL) as StatusRapor[])
-                    .filter((s) => pr.statusRapor[s] > 0)
-                    .map((s) => (
-                      <Badge key={s} variant="outline" className={WARNA_STATUS[s]}>
-                        {STATUS_RAPOR_LABEL[s]}: {pr.statusRapor[s]}
-                      </Badge>
-                    ))}
-                  {Object.values(pr.statusRapor).every((n) => n === 0) ? (
-                    <span className="text-xs text-muted-foreground">Belum ada rapor dihitung</span>
-                  ) : null}
-                </div>
-              </Link>
-            );
-          })}
+      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        <div className="grid gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-semibold">Progres Program Unggulan</h2>
+            {periodeSelect}
+          </div>
+          {program.length === 0 ? (
+            <EmptyState title="Belum ada program" description="Tambahkan program di Master Data → Program." />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {program.map((p, i) => (
+                <ProgramProgressCard
+                  key={p.id}
+                  kode={p.kode}
+                  nama={p.nama}
+                  jumlahPeserta={progres[i].jumlahPeserta}
+                  nilaiTerisi={progres[i].nilaiTerisi}
+                  nilaiTotal={progres[i].nilaiTotal}
+                  href={`/rapor/${p.kode}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+
+        <div className="grid gap-4">
+          <InfoSistemCard judul="Informasi Sistem" baris={infoBaris} />
+          <div className="rounded-xl border p-4">
+            <p className="mb-3 font-semibold">Statistik Perkembangan</p>
+            <StatistikChart data={statistikBar} />
+          </div>
+          <div className="rounded-xl border p-4">
+            <p className="mb-3 font-semibold">Aktivitas Terbaru</p>
+            <AktivitasTerbaru data={aktivitas} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
