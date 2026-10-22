@@ -94,7 +94,7 @@ async function Konten({ searchParams }: { searchParams: PageProps<"/dashboard">[
         </div>
 
         <div className="grid gap-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-semibold">Program Saya</h2>
             {periodeSelect}
           </div>
@@ -151,7 +151,7 @@ async function Konten({ searchParams }: { searchParams: PageProps<"/dashboard">[
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="grid gap-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-semibold">Progres Program Unggulan</h2>
             {periodeSelect}
           </div>

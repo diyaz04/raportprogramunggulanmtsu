@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Amiri, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { PwaRegister } from "@/components/pwa-register";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -26,6 +27,17 @@ export const metadata: Metadata = {
     template: "%s · Rapor Program Unggulan",
   },
   description: "Aplikasi rapor Program Unggulan MTs KH. A. Wahab Muhsin",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Rapor Unggulan",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#064e3b",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -35,6 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${fontSans.variable} ${fontArabic.variable} ${fontMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <PwaRegister />
         <TooltipProvider>{children}</TooltipProvider>
         <Toaster theme="light" position="top-center" richColors />
       </body>
