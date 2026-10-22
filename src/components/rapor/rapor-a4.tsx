@@ -29,7 +29,7 @@ export function RaporA4({
 
   return (
     <div
-      className="relative mx-auto aspect-[210/297] w-full max-w-[210mm] bg-white p-[12mm] text-[11px] text-black print:aspect-auto print:min-h-[297mm] print:shadow-none"
+      className="relative w-[210mm] min-h-[297mm] bg-white p-[12mm] text-[11px] text-black print:shadow-none"
       style={{ fontFamily: "var(--font-sans)" }}
     >
       {data.pengaturan.watermark_aktif ? <Watermark teks={data.pengaturan.watermark_teks} /> : null}

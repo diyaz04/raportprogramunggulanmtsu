@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 import { ArrowLeft } from "lucide-react";
 import { EmptyState } from "@/components/page-header";
 import { RaporA4 } from "@/components/rapor/rapor-a4";
+import { RaporA4Scaled } from "@/components/rapor/rapor-a4-scaled";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
@@ -55,14 +56,16 @@ async function Isi({ params }: { params: PageProps<"/rapor/[kode]/[pesertaId]">[
       </Button>
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-          <RaporA4
-            data={data}
-            skala={skala}
-            qrDataUrl={qrDataUrl}
-            kodeVerifikasi={rapor?.kode_verifikasi ?? null}
-            catatanTampil={catatanTampil ?? null}
-            catatanTerjemahanTampil={catatanTerjemahanTampil ?? null}
-          />
+          <RaporA4Scaled>
+            <RaporA4
+              data={data}
+              skala={skala}
+              qrDataUrl={qrDataUrl}
+              kodeVerifikasi={rapor?.kode_verifikasi ?? null}
+              catatanTampil={catatanTampil ?? null}
+              catatanTerjemahanTampil={catatanTerjemahanTampil ?? null}
+            />
+          </RaporA4Scaled>
         </div>
 
         <div className="grid content-start gap-4">
