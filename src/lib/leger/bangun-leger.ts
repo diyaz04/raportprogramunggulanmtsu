@@ -10,6 +10,26 @@ import { getHafalanSiswa, getSemuaSuratPerJuz, hitungRekapHafalan } from "@/lib/
 const WARNA_HEADER = "FFD1FAE5"; // hijau muda, sama seperti template import siswa
 const WARNA_DI_BAWAH_KKTP = "FFFCE7F3"; // merah muda pastel
 
+// `rakitDataRapor` per siswa lumayan berat (banyak sub-query) dan dipanggil ratusan kali
+// buat leger sekolah penuh — batasi berapa banyak yang jalan BERSAMAAN biar nggak nge-flood
+// koneksi Supabase, tapi tetap jauh lebih cepat daripada 1-per-1 sekuensial.
+const BATAS_KONKUREN = 8;
+
+async function petaTerbatas<T, R>(items: T[], batas: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const hasil: R[] = new Array(items.length);
+  let berikut = 0;
+  async function pekerja() {
+    while (berikut < items.length) {
+      const i = berikut++;
+      hasil[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(batas, items.length) }, pekerja));
+  return hasil;
+}
+
+type HasilPeserta = { data: RaporData; status: StatusRapor } | null;
+
 function setelHeader(row: ExcelJS.Row) {
   row.font = { bold: true };
   row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: WARNA_HEADER } };
@@ -28,12 +48,18 @@ function beriBorderSemua(sheet: ExcelJS.Worksheet, dariBaris: number) {
   });
 }
 
-async function ambilDataPeserta(pesertaProgramId: string): Promise<{ data: RaporData; status: StatusRapor } | null> {
+/** Cache per peserta_program_id — dipakai BERSAMA antar sheet (Rekap + sheet per-program) biar
+ * siswa yang sama nggak di-`rakitDataRapor` ulang dua kali buat 1x generate leger. */
+async function ambilDataPeserta(cache: Map<string, HasilPeserta>, pesertaProgramId: string): Promise<HasilPeserta> {
+  const dicache = cache.get(pesertaProgramId);
+  if (dicache !== undefined) return dicache;
+
   const rapor = await getRaporSatu(pesertaProgramId);
   const status: StatusRapor = rapor?.status ?? "draft";
   const data = status === "terkunci" && rapor?.snapshot ? rapor.snapshot : await rakitDataRapor(pesertaProgramId);
-  if (!data) return null;
-  return { data, status };
+  const hasil = data ? { data, status } : null;
+  cache.set(pesertaProgramId, hasil);
+  return hasil;
 }
 
 export async function bangunLegerWorkbook(periodeId: string, cakupanProgramId: string | null): Promise<ExcelJS.Workbook> {
@@ -44,20 +70,27 @@ export async function bangunLegerWorkbook(periodeId: string, cakupanProgramId: s
   workbook.creator = pengaturan.nama_madrasah;
   workbook.created = new Date();
 
-  await buatSheetRekap(workbook, programSemua, periodeId);
+  const cache: Map<string, HasilPeserta> = new Map();
+
+  await buatSheetRekap(workbook, programSemua, periodeId, cache);
 
   for (const program of programDipilih) {
     if (program.jenis === "tahfidz") {
-      await buatSheetTahfidz(workbook, program, periodeId);
+      await buatSheetTahfidz(workbook, program, periodeId, cache);
     } else {
-      await buatSheetProgram(workbook, program, periodeId);
+      await buatSheetProgram(workbook, program, periodeId, cache);
     }
   }
 
   return workbook;
 }
 
-async function buatSheetRekap(workbook: ExcelJS.Workbook, programSemua: ProgramDenganJumlah[], periodeId: string) {
+async function buatSheetRekap(
+  workbook: ExcelJS.Workbook,
+  programSemua: ProgramDenganJumlah[],
+  periodeId: string,
+  cache: Map<string, HasilPeserta>,
+) {
   const sheet = workbook.addWorksheet("Rekap");
   const kolomProgram = programSemua.map((p) => p.kode);
   sheet.columns = [
@@ -78,12 +111,13 @@ async function buatSheetRekap(workbook: ExcelJS.Workbook, programSemua: ProgramD
 
   for (const program of programSemua) {
     const peserta = await getPesertaProgram(program.id, periodeId);
-    for (const p of peserta) {
-      const hasil = await ambilDataPeserta(p.id);
+    const hasilSemua = await petaTerbatas(peserta, BATAS_KONKUREN, (p) => ambilDataPeserta(cache, p.id));
+    peserta.forEach((p, i) => {
+      const hasil = hasilSemua[i];
       const baris = perSiswa.get(p.siswa.id) ?? { nis: p.siswa.nis, nisn: p.siswa.nisn, nama: p.siswa.nama, kelas: p.kelas_nama, nilai: {} };
       baris.nilai[program.kode] = hasil?.data.nilai_akhir ?? null;
       perSiswa.set(p.siswa.id, baris);
-    }
+    });
   }
 
   let no = 1;
@@ -98,7 +132,12 @@ async function buatSheetRekap(workbook: ExcelJS.Workbook, programSemua: ProgramD
   beriBorderSemua(sheet, 1);
 }
 
-async function buatSheetProgram(workbook: ExcelJS.Workbook, program: ProgramDenganJumlah, periodeId: string) {
+async function buatSheetProgram(
+  workbook: ExcelJS.Workbook,
+  program: ProgramDenganJumlah,
+  periodeId: string,
+  cache: Map<string, HasilPeserta>,
+) {
   const [peserta, indikatorSemua, kehadiranSemua] = await Promise.all([
     getPesertaProgram(program.id, periodeId),
     getIndikatorProgram(program.id, periodeId),
@@ -106,6 +145,7 @@ async function buatSheetProgram(workbook: ExcelJS.Workbook, program: ProgramDeng
   ]);
   const indikator = indikatorSemua.filter((i) => i.aktif);
   const kehadiranPerPeserta = new Map(kehadiranSemua.map((k) => [k.peserta.id, k.kehadiran]));
+  const hasilSemua = await petaTerbatas(peserta, BATAS_KONKUREN, (p) => ambilDataPeserta(cache, p.id));
 
   const sheet = workbook.addWorksheet(program.kode.slice(0, 31));
   sheet.columns = [
@@ -137,8 +177,8 @@ async function buatSheetProgram(workbook: ExcelJS.Workbook, program: ProgramDeng
   const entri: Entri[] = [];
 
   let no = 1;
-  for (const p of peserta) {
-    const hasil = await ambilDataPeserta(p.id);
+  for (const [i, p] of peserta.entries()) {
+    const hasil = hasilSemua[i];
     const kehadiran = kehadiranPerPeserta.get(p.id);
     const row: Record<string, unknown> = {
       no: no,
@@ -185,13 +225,22 @@ async function buatSheetProgram(workbook: ExcelJS.Workbook, program: ProgramDeng
   sheet.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
 }
 
-async function buatSheetTahfidz(workbook: ExcelJS.Workbook, program: ProgramDenganJumlah, periodeId: string) {
+async function buatSheetTahfidz(
+  workbook: ExcelJS.Workbook,
+  program: ProgramDenganJumlah,
+  periodeId: string,
+  cache: Map<string, HasilPeserta>,
+) {
   const [peserta, semuaSuratPerJuz, semuaPeriode] = await Promise.all([
     getPesertaProgram(program.id, periodeId),
     getSemuaSuratPerJuz(),
     getPeriodeList(),
   ]);
   const labelPerPeriode = new Map(semuaPeriode.map((p) => [p.id, labelPeriode(p)]));
+  const dataSemua = await petaTerbatas(peserta, BATAS_KONKUREN, async (p) => ({
+    hasil: await ambilDataPeserta(cache, p.id),
+    hafalanSiswa: await getHafalanSiswa(p.siswa.id),
+  }));
 
   const ringkas = workbook.addWorksheet("THF — Ringkas");
   ringkas.columns = [
@@ -224,9 +273,8 @@ async function buatSheetTahfidz(workbook: ExcelJS.Workbook, program: ProgramDeng
   detail.views = [{ state: "frozen", ySplit: 1 }];
 
   let no = 1;
-  for (const p of peserta) {
-    const hasil = await ambilDataPeserta(p.id);
-    const hafalanSiswa = await getHafalanSiswa(p.siswa.id);
+  for (const [i, p] of peserta.entries()) {
+    const { hasil, hafalanSiswa } = dataSemua[i];
     const rekap = hitungRekapHafalan(hafalanSiswa, semuaSuratPerJuz);
 
     ringkas.addRow({
