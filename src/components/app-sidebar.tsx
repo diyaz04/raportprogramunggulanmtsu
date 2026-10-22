@@ -45,26 +45,49 @@ function initials(nama: string) {
     .join("");
 }
 
-export function AppSidebar({ user }: { user: SidebarUser }) {
+function LogoBulat({ src, className = "" }: { src: string; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- URL publik Supabase Storage
+    <img src={src} alt="Logo" className={`size-9 shrink-0 rounded-full bg-white/90 object-contain p-1 drop-shadow ${className}`} />
+  );
+}
+
+export function AppSidebar({
+  user,
+  logoKiriUrl,
+  logoKananUrl,
+  namaMadrasah,
+}: {
+  user: SidebarUser;
+  logoKiriUrl?: string | null;
+  logoKananUrl?: string | null;
+  namaMadrasah?: string;
+}) {
   const pathname = usePathname();
   const groups = navForRole(user.role, { bisaTahfidz: user.bisaTahfidz });
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+        <Link
+          href="/dashboard"
+          className="flex flex-col gap-2 rounded-lg p-2 transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:items-center"
+        >
+          <div className="flex items-center gap-2">
+            {logoKiriUrl ? (
+              <LogoBulat src={logoKiriUrl} />
+            ) : (
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <BookOpenCheck className="size-4" />
               </div>
-              <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate text-sm font-semibold">Rapor Unggulan</span>
-                <span className="truncate text-xs text-sidebar-foreground/70">MTs KH. A. Wahab Muhsin</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+            )}
+            {logoKananUrl ? <LogoBulat src={logoKananUrl} className="group-data-[collapsible=icon]:hidden" /> : null}
+          </div>
+          <div className="grid leading-tight group-data-[collapsible=icon]:hidden">
+            <span className="truncate text-sm font-semibold">Rapor Unggulan</span>
+            <span className="truncate text-xs text-sidebar-foreground/70">{namaMadrasah ?? "MTs KH. A. Wahab Muhsin"}</span>
+          </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>

@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ROLE_LABEL, getCurrentUser } from "@/lib/auth";
-import { getPeriodeAktif, labelPeriode } from "@/lib/data/master";
+import { getPengaturanAman, getPeriodeAktif, labelPeriode } from "@/lib/data/master";
 import { getProgramByKode, getProgramIdUntukGuru } from "@/lib/data/program";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -35,7 +35,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 async function SidebarWithUser() {
   const user = await getCurrentUser();
-  const bisaTahfidz = user.role === "guru" ? await guruDitugaskanTahfidz(user.id) : false;
+  const [bisaTahfidz, pengaturan] = await Promise.all([
+    user.role === "guru" ? guruDitugaskanTahfidz(user.id) : Promise.resolve(false),
+    getPengaturanAman(),
+  ]);
   return (
     <AppSidebar
       user={{
@@ -45,6 +48,9 @@ async function SidebarWithUser() {
         roleLabel: ROLE_LABEL[user.role],
         bisaTahfidz,
       }}
+      logoKiriUrl={pengaturan?.logo_kiri_url ?? null}
+      logoKananUrl={pengaturan?.logo_kanan_url ?? null}
+      namaMadrasah={pengaturan?.nama_madrasah ?? "MTs KH. A. Wahab Muhsin"}
     />
   );
 }
