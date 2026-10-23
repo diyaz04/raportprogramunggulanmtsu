@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
-import { ResetZoom } from "@/components/reset-zoom";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,7 +11,6 @@ import { getProgramByKode, getProgramIdUntukGuru } from "@/lib/data/program";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <ResetZoom />
       {/* Sesi dibaca di dalam Suspense: kerangka halaman tetap tampil instan */}
       <Suspense fallback={<SidebarPlaceholder />}>
         <SidebarWithUser />

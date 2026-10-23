@@ -28,7 +28,7 @@ const WARNA_KELAS: WarnaProgram = { bg: "bg-violet-100", text: "text-violet-700"
 
 export default function DashboardPage(props: PageProps<"/dashboard">) {
   return (
-    <div className="mx-auto grid max-w-6xl gap-6">
+    <div className="mx-auto grid max-w-6xl gap-6 overflow-x-clip">
       <Suspense fallback={<Skeleton className="h-48 w-full rounded-2xl" />}>
         <Hero />
       </Suspense>
