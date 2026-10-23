@@ -24,7 +24,7 @@ export function ProgramProgressCard({
   const persen = nilaiTotal > 0 ? Math.round((nilaiTerisi / nilaiTotal) * 100) : 0;
 
   return (
-    <Link href={href} className="flex items-center gap-3 rounded-xl border p-3 transition-colors hover:border-foreground/20 hover:bg-muted/40">
+    <Link href={href} className="flex min-w-0 items-center gap-3 rounded-xl border p-3 transition-colors hover:border-foreground/20 hover:bg-muted/40">
       <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${warna.bg} ${warna.text}`}>
         <Icon className="size-5" />
       </div>
