@@ -116,6 +116,14 @@
   html {
     @apply font-sans;
   }
+  /* Jaring pengaman: halaman TIDAK BOLEH bisa di-scroll ke samping di HP, apa pun
+   * penyebabnya (teks panjang tanpa spasi, komponen pihak ketiga, dsb). Lebih baik
+   * konten yang kepanjangan ke-clip daripada seluruh halaman melebar dari layar. */
+  html,
+  body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
 }
 
 /* Halaman cetak rapor (lihat src/app/cetak/[kode]) — 1 <section data-halaman-rapor> per siswa. */
