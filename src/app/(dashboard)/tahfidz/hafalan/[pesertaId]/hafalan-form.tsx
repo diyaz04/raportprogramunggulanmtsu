@@ -18,7 +18,9 @@ export function HafalanForm({ siswaId, periodeSetorId, semuaSuratPerJuz }: { sis
   const [juz, setJuz] = useState(30);
   const [suratTerpilih, setSuratTerpilih] = useState<SuratDiJuz | null>(null);
   const [nilaiSeragam, setNilaiSeragam] = useState("");
+  const [tanggalSeragam, setTanggalSeragam] = useState("");
   const [pendingJuzPenuh, startTransition] = useTransition();
+  const hariIni = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const suratDiJuzIni = useMemo(
     () => semuaSuratPerJuz.filter((s) => s.juz === juz).sort((a, b) => a.ayat_awal - b.ayat_awal),
@@ -33,8 +35,9 @@ export function HafalanForm({ siswaId, periodeSetorId, semuaSuratPerJuz }: { sis
 
   function tambahSatuJuzPenuh() {
     const nilai = nilaiSeragam.trim() === "" ? null : Number(nilaiSeragam);
+    const tanggal = tanggalSeragam.trim() === "" ? null : tanggalSeragam;
     startTransition(async () => {
-      const result = await tambahJuzPenuh(siswaId, periodeSetorId, juz, nilai, {});
+      const result = await tambahJuzPenuh(siswaId, periodeSetorId, juz, nilai, tanggal, {});
       if (result.error) toast.error(result.error);
       else toast.success(result.message);
     });
@@ -44,7 +47,14 @@ export function HafalanForm({ siswaId, periodeSetorId, semuaSuratPerJuz }: { sis
     <form action={formAction} className="grid gap-3 rounded-xl border p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-semibold">Tambah Hafalan</p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            type="date"
+            className="h-8 w-36"
+            value={tanggalSeragam}
+            onChange={(e) => setTanggalSeragam(e.target.value)}
+            aria-label="Tanggal seragam untuk 1 juz penuh (opsional)"
+          />
           <Input
             type="number"
             min={0}
@@ -62,8 +72,8 @@ export function HafalanForm({ siswaId, periodeSetorId, semuaSuratPerJuz }: { sis
       </div>
       <p className="-mt-1 text-xs text-muted-foreground">
         Isi &ldquo;Nilai seragam&rdquo; untuk menandai semua surat di juz terpilih sudah hafal dengan nilai yang sama sekaligus
-        (surat yang sudah tercatat tapi belum punya nilai ikut diisi). Kosongkan kalau mau menilai per surat secara
-        manual di bawah.
+        (surat yang sudah tercatat tapi belum punya nilai ikut diisi). Tanggal seragam (opsional) ikut ditempel ke
+        semua surat yang ditandai/diisi itu. Kosongkan kalau mau menilai per surat secara manual di bawah.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-4">
@@ -135,7 +145,10 @@ export function HafalanForm({ siswaId, periodeSetorId, semuaSuratPerJuz }: { sis
         </Field>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-[auto_1fr]">
+      <div className="grid gap-3 sm:grid-cols-[auto_auto_1fr]">
+        <Field label="Tanggal" htmlFor="tanggal" hint="Opsional">
+          <Input id="tanggal" name="tanggal" type="date" defaultValue={hariIni} className="w-36" />
+        </Field>
         <Field label="Nilai" htmlFor="nilai" hint="Opsional, bisa dikosongkan dulu">
           <Input id="nilai" name="nilai" type="number" min={0} max={100} className="w-24" />
         </Field>

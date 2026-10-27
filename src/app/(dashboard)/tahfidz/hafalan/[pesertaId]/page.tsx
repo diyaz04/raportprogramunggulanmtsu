@@ -11,6 +11,7 @@ import { requireRole } from "@/lib/auth";
 import { getSkalaPredikatGlobal } from "@/lib/data/indikator";
 import { getPesertaProgramById } from "@/lib/data/program";
 import { getHafalanSiswa, getSemuaSuratPerJuz, hitungRekapHafalan } from "@/lib/data/tahfidz";
+import { formatTanggal } from "@/lib/format";
 import { hapusHafalan } from "../actions";
 import { HafalanForm } from "./hafalan-form";
 import { NilaiHafalanCell } from "./nilai-hafalan-cell";
@@ -82,6 +83,9 @@ async function Isi({ params }: { params: PageProps<"/tahfidz/hafalan/[pesertaId]
                               baru
                             </Badge>
                           ) : null}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {b.tanggal ? formatTanggal(b.tanggal) : "Tanggal belum diisi"}
                         </span>
                         {b.catatan ? <span className="text-xs text-muted-foreground">{b.catatan}</span> : null}
                       </div>

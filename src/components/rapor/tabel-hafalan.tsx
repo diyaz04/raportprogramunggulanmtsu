@@ -18,6 +18,7 @@ export function TabelHafalan({ hafalan, rekap, skala }: { hafalan: BarisHafalan[
             <th className="w-10 border border-black p-1">Juz</th>
             <th className="border border-black p-1 text-left">Surat</th>
             <th className="w-20 border border-black p-1">Ayat</th>
+            <th className="w-16 border border-black p-1">Tanggal</th>
             <th className="w-10 border border-black p-1">Nilai</th>
             <th className="w-24 border border-black p-1">Predikat</th>
           </tr>
@@ -36,6 +37,7 @@ export function TabelHafalan({ hafalan, rekap, skala }: { hafalan: BarisHafalan[
                 <td className="border border-black p-1 text-center">
                   {h.ayat_awal}–{h.ayat_akhir}
                 </td>
+                <td className="border border-black p-1 text-center">{h.tanggal ? h.tanggal.split("-").reverse().join("/") : "—"}</td>
                 <td className="border border-black p-1 text-center">{h.nilai ?? "—"}</td>
                 <td className="border border-black p-1 text-center">{predikat ? labelPredikat(predikat, "ar", "tahfidz", skala) : "—"}</td>
               </tr>

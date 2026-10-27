@@ -18,6 +18,7 @@ export type HafalanRow = {
   nilai: number | null;
   periode_setor_id: string;
   catatan: string | null;
+  tanggal: string | null;
 };
 
 function ambil<T>(data: T | null, error: { message: string } | null, konteks: string): T {
@@ -54,7 +55,7 @@ export async function getHafalanSiswa(siswaId: string): Promise<HafalanRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("tahfidz_hafalan")
-    .select("id, juz, surat_no, ayat_awal, ayat_akhir, nilai, periode_setor_id, catatan, surat:surat_no(nama_latin, nama_arab)")
+    .select("id, juz, surat_no, ayat_awal, ayat_akhir, nilai, periode_setor_id, catatan, tanggal, surat:surat_no(nama_latin, nama_arab)")
     .eq("siswa_id", siswaId)
     .order("juz")
     .order("ayat_awal");
@@ -67,6 +68,7 @@ export async function getHafalanSiswa(siswaId: string): Promise<HafalanRow[]> {
     nilai: number | null;
     periode_setor_id: string;
     catatan: string | null;
+    tanggal: string | null;
     surat: { nama_latin: string; nama_arab: string } | null;
   }[];
   return rows.map((r) => ({ ...r, nama_latin: r.surat?.nama_latin ?? `Surat ${r.surat_no}`, nama_arab: r.surat?.nama_arab ?? "" }));

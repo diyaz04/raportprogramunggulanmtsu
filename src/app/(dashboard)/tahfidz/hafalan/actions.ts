@@ -16,12 +16,19 @@ const nilaiOpsional = z
   .transform((s) => (s === "" ? null : Number(s)))
   .pipe(z.number().int().min(0).max(100).nullable());
 
+const tanggalOpsional = z
+  .string()
+  .trim()
+  .transform((s) => (s === "" ? null : s))
+  .pipe(z.string().date().nullable());
+
 const hafalanSchema = z.object({
   juz: z.coerce.number().int().min(1).max(30),
   surat_no: z.coerce.number().int().min(1).max(114),
   ayat_awal: z.coerce.number().int().min(1),
   ayat_akhir: z.coerce.number().int().min(1),
   nilai: nilaiOpsional,
+  tanggal: tanggalOpsional,
   catatan: z
     .string()
     .trim()
@@ -45,6 +52,7 @@ export async function tambahHafalan(
     ayat_awal: formData.get("ayat_awal"),
     ayat_akhir: formData.get("ayat_akhir"),
     nilai: String(formData.get("nilai") ?? ""),
+    tanggal: String(formData.get("tanggal") ?? ""),
     catatan: String(formData.get("catatan") ?? ""),
   });
   if (!parsed.success) return gagal(parsed.error.issues[0].message);
@@ -59,9 +67,9 @@ export async function tambahHafalan(
     .eq("surat_no", parsed.data.surat_no)
     .maybeSingle();
 
-  const { ayat_awal, ayat_akhir, nilai, catatan } = parsed.data;
+  const { ayat_awal, ayat_akhir, nilai, tanggal, catatan } = parsed.data;
   const { error } = existing
-    ? await supabase.from("tahfidz_hafalan").update({ ayat_awal, ayat_akhir, nilai, catatan }).eq("id", existing.id)
+    ? await supabase.from("tahfidz_hafalan").update({ ayat_awal, ayat_akhir, nilai, tanggal, catatan }).eq("id", existing.id)
     : await supabase.from("tahfidz_hafalan").insert({
         siswa_id: siswaId,
         ...parsed.data,
@@ -75,20 +83,24 @@ export async function tambahHafalan(
 
 /**
  * Tandai 1 juz sekaligus sebagai hafal: surat yang belum tercatat ditambahkan (ayat penuh),
- * surat yang sudah tercatat tapi belum dinilai ikut diisi. Kalau `nilaiSeragam` dikosongkan,
- * nilainya dibiarkan kosong seperti sebelumnya (guru tinggal menilai satu per satu / per surat).
+ * surat yang sudah tercatat tapi belum dinilai ikut diisi. Kalau `nilaiSeragam`/`tanggalSeragam`
+ * dikosongkan, field itu dibiarkan kosong seperti sebelumnya (guru tinggal mengisi per surat).
  */
 export async function tambahJuzPenuh(
   siswaId: string,
   periodeSetorId: string,
   juz: number,
   nilaiSeragam: number | null,
+  tanggalSeragam: string | null,
   _prev: ActionState,
 ): Promise<ActionState> {
   await requireKelolaTahfidz(siswaId);
 
   if (nilaiSeragam !== null && (!Number.isInteger(nilaiSeragam) || nilaiSeragam < 0 || nilaiSeragam > 100)) {
     return gagal("Nilai seragam harus angka bulat 0-100");
+  }
+  if (tanggalSeragam !== null && !tanggalOpsional.safeParse(tanggalSeragam).success) {
+    return gagal("Tanggal seragam tidak valid");
   }
 
   const supabase = await createClient();
@@ -111,18 +123,22 @@ export async function tambahJuzPenuh(
         ayat_awal: s.ayat_awal,
         ayat_akhir: s.ayat_akhir,
         nilai: nilaiSeragam,
+        tanggal: tanggalSeragam,
         periode_setor_id: periodeSetorId,
       })),
     );
     if (error) return gagal(pesanError(error));
   }
 
-  // Surat yang sudah tercatat tapi belum punya nilai ikut diisi nilai seragam (kalau diminta).
+  // Surat yang sudah tercatat tapi belum punya nilai ikut diisi nilai/tanggal seragam (kalau diminta).
   let diperbarui = 0;
-  if (nilaiSeragam !== null) {
+  if (nilaiSeragam !== null || tanggalSeragam !== null) {
     const idBelumDinilai = (sudahAda ?? []).filter((r) => r.nilai == null).map((r) => r.id);
     if (idBelumDinilai.length > 0) {
-      const { error } = await supabase.from("tahfidz_hafalan").update({ nilai: nilaiSeragam }).in("id", idBelumDinilai);
+      const update: { nilai?: number; tanggal?: string } = {};
+      if (nilaiSeragam !== null) update.nilai = nilaiSeragam;
+      if (tanggalSeragam !== null) update.tanggal = tanggalSeragam;
+      const { error } = await supabase.from("tahfidz_hafalan").update(update).in("id", idBelumDinilai);
       if (error) return gagal(pesanError(error));
       diperbarui = idBelumDinilai.length;
     }
@@ -133,7 +149,7 @@ export async function tambahJuzPenuh(
   revalidateTahfidz();
   const bagian: string[] = [];
   if (baru.length > 0) bagian.push(`${baru.length} surat ditambahkan`);
-  if (diperbarui > 0) bagian.push(`${diperbarui} surat diisi nilainya`);
+  if (diperbarui > 0) bagian.push(`${diperbarui} surat diisi`);
   return sukses(`Juz ${juz}: ${bagian.join(", ")}${nilaiSeragam != null ? ` (nilai seragam ${nilaiSeragam})` : ", tinggal diisi nilainya"}.`);
 }
 

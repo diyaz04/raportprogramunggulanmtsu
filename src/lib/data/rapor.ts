@@ -49,7 +49,7 @@ export type RaporData = {
   kehadiran: { hadir: number; sakit: number; izin: number; alpa: number } | null;
   penanda_tangan: { nama: string; nip: string | null; label_jabatan: string; urutan: number }[];
   tahfidz?: {
-    hafalan: { juz: number; surat_no: number; nama_latin: string; nama_arab: string; ayat_awal: number; ayat_akhir: number; nilai: number | null; baru: boolean }[];
+    hafalan: { juz: number; surat_no: number; nama_latin: string; nama_arab: string; ayat_awal: number; ayat_akhir: number; nilai: number | null; tanggal: string | null; baru: boolean }[];
     rekap: { juzPenuh: number; juzSebagian: number; jumlahSurat: number; totalAyat: number; rataRata: number | null };
   };
   riset?: { judul: string | null; tahap: TahapRiset; tahapLabel: string };
@@ -164,6 +164,7 @@ export async function rakitDataRapor(pesertaProgramId: string): Promise<RaporDat
         ayat_awal: h.ayat_awal,
         ayat_akhir: h.ayat_akhir,
         nilai: h.nilai,
+        tanggal: h.tanggal,
         baru: h.periode_setor_id === peserta.periode_id,
       })),
       rekap,
