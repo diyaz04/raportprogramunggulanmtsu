@@ -11,6 +11,8 @@ export function NilaiSubnav({ kode, tampilkanPrestasi }: { kode: string; tampilk
     { href: base, label: "Nilai" },
     { href: `${base}/kehadiran`, label: "Kehadiran" },
     ...(tampilkanPrestasi ? [{ href: `${base}/prestasi`, label: "Prestasi" }] : []),
+    { href: `/program/${kode}/indikator`, label: "Atur Indikator" },
+    { href: `/program/${kode}/template`, label: "Template Deskripsi" },
   ];
 
   return (

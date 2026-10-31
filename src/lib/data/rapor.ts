@@ -82,7 +82,7 @@ export async function rakitDataRapor(pesertaProgramId: string): Promise<RaporDat
     supabase.from("periode").select("id, tahun_ajaran, semester, tanggal_rapor").eq("id", peserta.periode_id).single(),
     supabase
       .from("kelas_siswa")
-      .select("kelas:kelas_id(nama)")
+      .select("kelas:kelas_id(nama, tingkat)")
       .eq("periode_id", peserta.periode_id)
       .eq("siswa_id", peserta.siswa.id)
       .maybeSingle(),
@@ -90,6 +90,8 @@ export async function rakitDataRapor(pesertaProgramId: string): Promise<RaporDat
   if (eprog) throw new Error(`Gagal memuat program: ${eprog.message}`);
   if (eper) throw new Error(`Gagal memuat periode: ${eper.message}`);
   if (ek) throw new Error(`Gagal memuat kelas: ${ek.message}`);
+
+  const siswaTingkat = (kelasSiswa as unknown as { kelas: { nama: string; tingkat: number } | null } | null)?.kelas?.tingkat ?? null;
 
   const [indikatorDenganTemplate, skala, pengaturan, prestasiSemua, kehadiranSemua, penandaTangan] = await Promise.all([
     getIndikatorDenganTemplate(ppLengkap.program_id, peserta.periode_id),
@@ -106,7 +108,10 @@ export async function rakitDataRapor(pesertaProgramId: string): Promise<RaporDat
     .eq("peserta_program_id", pesertaProgramId);
   const nilaiPerIndikator = new Map((ambil(nilaiRows, en, "Gagal memuat nilai") ?? []).map((n) => [n.indikator_id, n.nilai]));
 
-  const indikatorAktif = indikatorDenganTemplate.filter((i) => i.aktif);
+  // Hanya sertakan indikator yang sesuai dengan tingkat kelas siswa (atau indikator lintas kelas/umum)
+  const indikatorAktif = indikatorDenganTemplate.filter(
+    (i) => i.aktif && (i.tingkat === null || siswaTingkat === null || i.tingkat === siswaTingkat),
+  );
   const indikatorBaris: RaporIndikatorBaris[] = indikatorAktif.map((ind) => {
     const nilai = nilaiPerIndikator.get(ind.id) ?? null;
     const predikat = nilai != null ? hitungPredikat(nilai, skala) : null;
@@ -300,7 +305,8 @@ export type ProgresProgram = {
 export async function getProgresProgram(programId: string, periodeId: string): Promise<ProgresProgram> {
   const [peserta, indikatorSemua] = await Promise.all([getPesertaProgram(programId, periodeId), getIndikatorDenganTemplate(programId, periodeId)]);
   const pesertaIds = peserta.map((p) => p.id);
-  const indikatorIds = indikatorSemua.filter((i) => i.aktif).map((i) => i.id);
+  const indikatorAktif = indikatorSemua.filter((i) => i.aktif);
+  const indikatorIds = indikatorAktif.map((i) => i.id);
 
   const supabase = await createClient();
   let nilaiTerisi = 0;
@@ -313,6 +319,12 @@ export async function getProgresProgram(programId: string, periodeId: string): P
     nilaiTerisi = count ?? 0;
   }
 
+  // Hitung total nilai yang seharusnya diisi berdasar tingkat masing-masing peserta
+  const nilaiTotal = peserta.reduce((total, p) => {
+    const cocok = indikatorAktif.filter((i) => i.tingkat === null || p.kelas_tingkat === null || i.tingkat === p.kelas_tingkat).length;
+    return total + cocok;
+  }, 0);
+
   const statusRapor: Record<StatusRapor, number> = { draft: 0, review: 0, disetujui: 0, terkunci: 0 };
   if (pesertaIds.length > 0) {
     const { data } = await supabase.from("rapor").select("status").in("peserta_program_id", pesertaIds);
@@ -321,9 +333,9 @@ export async function getProgresProgram(programId: string, periodeId: string): P
 
   return {
     jumlahPeserta: peserta.length,
-    jumlahIndikatorAktif: indikatorIds.length,
+    jumlahIndikatorAktif: indikatorAktif.length,
     nilaiTerisi,
-    nilaiTotal: pesertaIds.length * indikatorIds.length,
+    nilaiTotal,
     statusRapor,
   };
 }

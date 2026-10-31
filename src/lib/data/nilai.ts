@@ -14,16 +14,24 @@ function ambil<T>(data: T | null, error: { message: string } | null, konteks: st
   return data as T;
 }
 
-/** Grid input nilai: baris = peserta, kolom = indikator aktif. */
+/** Grid input nilai: baris = peserta, kolom = indikator aktif. Bisa difilter per tingkatan kelas (7, 8, 9). */
 export async function getGridNilai(
   programId: string,
   periodeId: string,
+  tingkatFilter?: number | null,
 ): Promise<{ baris: BarisNilai[]; kolom: KolomIndikator[] }> {
-  const [peserta, indikatorSemua] = await Promise.all([
+  const [semuaPeserta, indikatorSemua] = await Promise.all([
     getPesertaProgram(programId, periodeId),
     getIndikatorProgram(programId, periodeId),
   ]);
-  const indikator = indikatorSemua.filter((i) => i.aktif);
+
+  const peserta = tingkatFilter
+    ? semuaPeserta.filter((p) => p.kelas_tingkat === tingkatFilter)
+    : semuaPeserta;
+
+  const indikator = indikatorSemua.filter(
+    (i) => i.aktif && (tingkatFilter ? i.tingkat === null || i.tingkat === tingkatFilter : true),
+  );
 
   const supabase = await createClient();
   const [{ data: templateRows, error: et }, { data: nilaiRows, error: en }] = await Promise.all([

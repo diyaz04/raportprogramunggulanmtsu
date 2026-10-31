@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCurrentUser } from "@/lib/auth";
 import { getPeriodeList, labelPeriode } from "@/lib/data/master";
-import { getProgramList } from "@/lib/data/program";
+import { getProgramIdUntukGuru, getProgramList } from "@/lib/data/program";
 
 export const metadata: Metadata = { title: "Program & Peserta" };
 
@@ -27,8 +27,11 @@ export default function ProgramPage(props: PageProps<"/program">) {
 }
 
 async function Isi({ searchParams }: { searchParams: PageProps<"/program">["searchParams"] }) {
-  await getCurrentUser();
-  const { periode: periodeParam } = await searchParams;
+  const user = await getCurrentUser();
+  const searchParamsResolved = await searchParams;
+  const periodeParam = Array.isArray(searchParamsResolved.periode)
+    ? searchParamsResolved.periode[0]
+    : searchParamsResolved.periode;
   const daftarPeriode = await getPeriodeList();
 
   if (daftarPeriode.length === 0) {
@@ -41,11 +44,14 @@ async function Isi({ searchParams }: { searchParams: PageProps<"/program">["sear
   }
 
   const dipilih =
-    daftarPeriode.find((p) => p.id === (Array.isArray(periodeParam) ? periodeParam[0] : periodeParam)) ??
+    daftarPeriode.find((p) => p.id === periodeParam) ??
     daftarPeriode.find((p) => p.aktif) ??
     daftarPeriode[0];
 
-  const programs = await getProgramList(dipilih.id);
+  const [programs, programIdGuru] = await Promise.all([
+    getProgramList(dipilih.id),
+    user.role === "guru" ? getProgramIdUntukGuru(user.id, dipilih.id) : Promise.resolve(null),
+  ]);
 
   const grup = new Map<string, { nama: string; items: typeof programs }>();
   for (const p of programs) {
@@ -61,37 +67,53 @@ async function Isi({ searchParams }: { searchParams: PageProps<"/program">["sear
         options={daftarPeriode.map((p) => ({ id: p.id, label: labelPeriode(p) + (p.aktif ? " (aktif)" : "") }))}
       />
 
+      {user.role === "guru" ? (
+        <div className="rounded-xl border bg-muted/40 p-3 text-sm text-muted-foreground">
+          Pilih program yang ditugaskan kepada Anda (bertanda <span className="font-medium text-emerald-700">Program Anda</span>) untuk mengkonfigurasi indikator capaian, template deskripsi, dan melihat peserta.
+        </div>
+      ) : null}
+
       <div className="grid gap-6">
         {[...grup.values()].map((g) => (
           <div key={g.nama} className="grid gap-2">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{g.nama}</h2>
             <div className="grid gap-2 sm:grid-cols-2">
-              {g.items.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/program/${p.kode}`}
-                  className="group flex items-center justify-between gap-3 rounded-xl border p-4 transition-colors hover:border-foreground/20 hover:bg-muted/40"
-                >
-                  <div className="grid gap-1">
-                    <span className="font-medium">{p.nama}</span>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1">
-                        <UsersRound className="size-3.5" /> {p.jumlah_peserta} peserta
-                      </span>
-                      <span>·</span>
-                      <span>{p.jumlah_guru} guru</span>
+              {g.items.map((p) => {
+                const isDitugaskan = programIdGuru ? programIdGuru.includes(p.id) : false;
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/program/${p.kode}`}
+                    className="group flex items-center justify-between gap-3 rounded-xl border p-4 transition-colors hover:border-foreground/20 hover:bg-muted/40"
+                  >
+                    <div className="grid gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{p.nama}</span>
+                        {isDitugaskan ? (
+                          <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800">
+                            Program Anda
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <UsersRound className="size-3.5" /> {p.jumlah_peserta} peserta
+                        </span>
+                        <span>·</span>
+                        <span>{p.jumlah_guru} guru</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {p.jumlah_guru === 0 ? (
-                      <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
-                        Belum ada guru
-                      </Badge>
-                    ) : null}
-                    <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                  </div>
-                </Link>
-              ))}
+                    <div className="flex items-center gap-2">
+                      {p.jumlah_guru === 0 ? (
+                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                          Belum ada guru
+                        </Badge>
+                      ) : null}
+                      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ))}

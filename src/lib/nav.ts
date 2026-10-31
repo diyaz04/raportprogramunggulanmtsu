@@ -51,7 +51,7 @@ export const NAV: NavGroup[] = [
   },
   {
     label: "Program",
-    items: [{ title: "Program & Peserta", href: "/program", icon: Layers, roles: TANPA_GURU, ready: true }],
+    items: [{ title: "Program & Peserta", href: "/program", icon: Layers, roles: SEMUA, ready: true }],
   },
   {
     label: "Master Data",

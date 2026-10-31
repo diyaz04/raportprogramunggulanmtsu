@@ -155,7 +155,11 @@ async function buatSheetProgram(
     { header: "Nama", key: "nama", width: 28 },
     { header: "Kelas", key: "kelas", width: 10 },
     { header: "Kelompok", key: "kelompok", width: 14 },
-    ...indikator.map((ind) => ({ header: ind.nama, key: `ind_${ind.id}`, width: 9 })),
+    ...indikator.map((ind) => ({
+      header: ind.tingkat ? `${ind.nama} (Kls ${ind.tingkat})` : ind.nama,
+      key: `ind_${ind.id}`,
+      width: 9,
+    })),
     { header: "Jumlah", key: "jumlah", width: 9 },
     { header: "Nilai Akhir", key: "nilai_akhir", width: 10 },
     { header: "Predikat", key: "predikat", width: 9 },
@@ -196,8 +200,9 @@ async function buatSheetProgram(
       status: STATUS_RAPOR_LABEL[hasil?.status ?? "draft"],
     };
     if (hasil) {
-      indikator.forEach((ind, i) => {
-        row[`ind_${ind.id}`] = hasil.data.indikator[i]?.nilai ?? "";
+      const perNama = new Map(hasil.data.indikator.map((di) => [di.nama, di.nilai]));
+      indikator.forEach((ind) => {
+        row[`ind_${ind.id}`] = perNama.get(ind.nama) ?? "";
       });
     }
     const added = sheet.addRow(row);

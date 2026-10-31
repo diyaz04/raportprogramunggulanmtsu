@@ -15,6 +15,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ kode
 
   const url = new URL(request.url);
   const periodeId = url.searchParams.get("periode");
+  const tingkatParam = url.searchParams.get("tingkat");
+  const tingkat = tingkatParam ? Number(tingkatParam) : null;
   const daftarPeriode = await getPeriodeList();
   const periode = daftarPeriode.find((p) => p.id === periodeId) ?? daftarPeriode.find((p) => p.aktif) ?? daftarPeriode[0];
   if (!periode) return new Response("Periode tidak ditemukan", { status: 404 });
@@ -24,7 +26,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ kode
     return new Response("Anda belum ditugaskan ke program ini", { status: 403 });
   }
 
-  const { baris: semuaBaris, kolom } = await getGridNilai(program.id, periode.id);
+  const { baris: semuaBaris, kolom } = await getGridNilai(program.id, periode.id, tingkat);
   const baris = filterBarisKelompok(semuaBaris, kelompokIzin);
   if (kolom.length === 0) return new Response("Belum ada indikator aktif untuk program ini", { status: 400 });
 
@@ -78,7 +80,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ kode
   });
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const namaFile = `Nilai_${program.kode}_${labelPeriode(periode).replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`;
+  const suffixTingkat = tingkat ? `_Kelas_${tingkat}` : "";
+  const namaFile = `Nilai_${program.kode}${suffixTingkat}_${labelPeriode(periode).replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`;
 
   return new Response(new Uint8Array(buffer as ArrayBuffer), {
     headers: {

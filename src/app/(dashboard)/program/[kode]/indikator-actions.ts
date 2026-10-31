@@ -30,6 +30,13 @@ const indikatorSchema = z.object({
     .max(300)
     .transform((s) => (s === "" ? null : s)),
   bobot: z.coerce.number().int().min(1, "Bobot minimal 1").max(100, "Bobot maksimal 100"),
+  tingkat: z
+    .preprocess(
+      (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+      z.number().int().min(7, "Tingkat kelas harus 7, 8, atau 9").max(9, "Tingkat kelas harus 7, 8, atau 9").nullable(),
+    )
+    .optional()
+    .transform((v) => (v === undefined ? null : v)),
 });
 
 export async function simpanIndikator(
@@ -47,6 +54,7 @@ export async function simpanIndikator(
     nama_arab: String(formData.get("nama_arab") ?? ""),
     keterangan: String(formData.get("keterangan") ?? ""),
     bobot: formData.get("bobot"),
+    tingkat: formData.get("tingkat"),
   });
   if (!parsed.success) return gagal(parsed.error.issues[0].message);
 
@@ -54,17 +62,25 @@ export async function simpanIndikator(
 
   if (id) {
     const { error } = await supabase.from("indikator").update(parsed.data).eq("id", id);
-    if (error) return gagal(pesanError(error, { duplikat: "Nama indikator tersebut sudah ada di program ini." }));
+    if (error) return gagal(pesanError(error, { duplikat: "Nama indikator tersebut sudah ada di tingkatan kelas ini pada program tersebut." }));
   } else {
-    const { count } = await supabase
+    let query = supabase
       .from("indikator")
       .select("id", { count: "exact", head: true })
       .eq("program_id", programId)
       .eq("periode_id", periodeId);
+
+    if (parsed.data.tingkat !== null) {
+      query = query.eq("tingkat", parsed.data.tingkat);
+    } else {
+      query = query.is("tingkat", null);
+    }
+
+    const { count } = await query;
     const { error } = await supabase
       .from("indikator")
       .insert({ ...parsed.data, program_id: programId, periode_id: periodeId, urutan: (count ?? 0) + 1 });
-    if (error) return gagal(pesanError(error, { duplikat: "Nama indikator tersebut sudah ada di program ini." }));
+    if (error) return gagal(pesanError(error, { duplikat: "Nama indikator tersebut sudah ada di tingkatan kelas ini pada program tersebut." }));
   }
 
   revalidateProgram();
@@ -107,12 +123,27 @@ export async function ubahUrutanIndikator(
   await requireKelolaProgram(programId, periodeId);
   const supabase = await createClient();
 
-  const { data: daftar, error } = await supabase
+  // Cari tingkat indikator yang ingin dipindah agar pergeseran urutan hanya terjadi di tingkat yang sama
+  const { data: item, error: ei } = await supabase
+    .from("indikator")
+    .select("id, tingkat")
+    .eq("id", id)
+    .single();
+  if (ei || !item) return gagal("Indikator tidak ditemukan");
+
+  let query = supabase
     .from("indikator")
     .select("id, urutan")
     .eq("program_id", programId)
-    .eq("periode_id", periodeId)
-    .order("urutan");
+    .eq("periode_id", periodeId);
+
+  if (item.tingkat !== null) {
+    query = query.eq("tingkat", item.tingkat);
+  } else {
+    query = query.is("tingkat", null);
+  }
+
+  const { data: daftar, error } = await query.order("urutan");
   if (error) return gagal(pesanError(error));
 
   const idx = (daftar ?? []).findIndex((d) => d.id === id);
@@ -201,7 +232,7 @@ export async function salinIndikatorDariPeriode(
 
   const { data: sumber, error: es } = await supabase
     .from("indikator")
-    .select("nama, nama_terjemahan, nama_arab, keterangan, bobot, urutan, aktif")
+    .select("nama, nama_terjemahan, nama_arab, keterangan, bobot, urutan, aktif, tingkat")
     .eq("program_id", programId)
     .eq("periode_id", periodeIdSumber)
     .order("urutan");
@@ -211,13 +242,13 @@ export async function salinIndikatorDariPeriode(
   const { data: dibuat, error } = await supabase
     .from("indikator")
     .insert(sumber.map((s) => ({ ...s, program_id: programId, periode_id: periodeIdTujuan })))
-    .select("id, nama");
+    .select("id, nama, tingkat");
   if (error) return gagal(pesanError(error));
 
-  // Peta nama -> id lama untuk menyalin template berdasarkan indikator sumber.
+  // Peta (nama + tingkat) -> template lama untuk menyalin template berdasarkan indikator sumber.
   const { data: indikatorSumber, error: eis } = await supabase
     .from("indikator")
-    .select("id, nama, template:template_deskripsi(predikat_kode, teks, teks_terjemahan)")
+    .select("id, nama, tingkat, template:template_deskripsi(predikat_kode, teks, teks_terjemahan)")
     .eq("program_id", programId)
     .eq("periode_id", periodeIdSumber);
   if (eis || !indikatorSumber) {
@@ -225,9 +256,15 @@ export async function salinIndikatorDariPeriode(
     return sukses(`${sumber.length} indikator disalin (template tidak ikut tersalin: ${eis?.message ?? "data tidak ditemukan"})`);
   }
 
-  const templatePerNama = new Map(indikatorSumber.map((i) => [i.nama, i.template as { predikat_kode: PredikatKode; teks: string | null; teks_terjemahan: string | null }[]]));
+  const kunciIndikator = (nama: string, tingkat: number | null) => `${nama}__${tingkat ?? "semua"}`;
+  const templatePerKunci = new Map(
+    indikatorSumber.map((i) => [
+      kunciIndikator(i.nama, i.tingkat),
+      i.template as { predikat_kode: PredikatKode; teks: string | null; teks_terjemahan: string | null }[],
+    ]),
+  );
   const templateBaru = (dibuat ?? []).flatMap((baru) =>
-    (templatePerNama.get(baru.nama) ?? []).map((t) => ({
+    (templatePerKunci.get(kunciIndikator(baru.nama, baru.tingkat)) ?? []).map((t) => ({
       indikator_id: baru.id,
       predikat_kode: t.predikat_kode,
       teks: t.teks,

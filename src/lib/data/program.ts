@@ -42,6 +42,7 @@ export type PesertaProgram = {
   id: string;
   siswa: SiswaRingkas;
   kelas_nama: string | null;
+  kelas_tingkat: number | null;
   kelompok_id: string | null;
   kelompok_nama: string | null;
 };
@@ -154,23 +155,27 @@ export async function getPesertaProgram(programId: string, periodeId: string): P
 
   const { data: ks, error: ke } = await supabase
     .from("kelas_siswa")
-    .select("siswa_id, kelas:kelas_id(nama)")
+    .select("siswa_id, kelas:kelas_id(nama, tingkat)")
     .eq("periode_id", periodeId)
     .in("siswa_id", rows.map((r) => r.siswa.id));
   const kelasRows = (ambil(ks, ke, "Gagal memuat kelas siswa") ?? []) as unknown as {
     siswa_id: string;
-    kelas: { nama: string } | null;
+    kelas: { nama: string; tingkat: number } | null;
   }[];
-  const kelasPerSiswa = new Map(kelasRows.map((k) => [k.siswa_id, k.kelas?.nama ?? null]));
+  const kelasPerSiswa = new Map(kelasRows.map((k) => [k.siswa_id, k.kelas]));
 
   return rows
-    .map((r) => ({
-      id: r.id,
-      siswa: r.siswa,
-      kelas_nama: kelasPerSiswa.get(r.siswa.id) ?? null,
-      kelompok_id: r.kelompok_id,
-      kelompok_nama: r.kelompok?.nama ?? null,
-    }))
+    .map((r) => {
+      const k = kelasPerSiswa.get(r.siswa.id);
+      return {
+        id: r.id,
+        siswa: r.siswa,
+        kelas_nama: k?.nama ?? null,
+        kelas_tingkat: k?.tingkat ?? null,
+        kelompok_id: r.kelompok_id,
+        kelompok_nama: r.kelompok?.nama ?? null,
+      };
+    })
     .sort((a, b) => a.siswa.nama.localeCompare(b.siswa.nama, "id"));
 }
 

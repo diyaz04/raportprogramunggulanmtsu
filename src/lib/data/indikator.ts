@@ -8,6 +8,7 @@ export type Indikator = {
   id: string;
   program_id: string;
   periode_id: string;
+  tingkat: number | null;
   nama: string;
   nama_terjemahan: string | null;
   nama_arab: string | null;
@@ -49,7 +50,7 @@ export async function getIndikatorProgram(programId: string, periodeId: string):
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("indikator")
-    .select("id, program_id, periode_id, nama, nama_terjemahan, nama_arab, keterangan, bobot, urutan, aktif")
+    .select("id, program_id, periode_id, tingkat, nama, nama_terjemahan, nama_arab, keterangan, bobot, urutan, aktif")
     .eq("program_id", programId)
     .eq("periode_id", periodeId)
     .order("urutan");
