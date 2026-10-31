@@ -15,10 +15,6 @@ export const metadata: Metadata = { title: "Program & Peserta" };
 export default function ProgramPage(props: PageProps<"/program">) {
   return (
     <div className="mx-auto grid max-w-5xl gap-6">
-      <PageHeader
-        title="Program & Peserta"
-        description="6 rumpun, 10 program unggulan. Pilih program untuk atur peserta, kelompok, guru, dan penanda tangan."
-      />
       <Suspense fallback={<Skeleton className="h-64 w-full" />}>
         <Isi searchParams={props.searchParams} />
       </Suspense>
@@ -36,10 +32,20 @@ async function Isi({ searchParams }: { searchParams: PageProps<"/program">["sear
 
   if (daftarPeriode.length === 0) {
     return (
-      <EmptyState
-        title="Belum ada periode"
-        description="Buat dan aktifkan periode dulu di menu Master Data → Periode."
-      />
+      <>
+        <PageHeader
+          title={user.role === "guru" ? "Program yang Diampu" : "Program & Peserta"}
+          description={
+            user.role === "guru"
+              ? "Daftar program unggulan yang Anda ampu pada periode ini."
+              : "6 rumpun, 10 program unggulan. Pilih program untuk atur peserta, kelompok, guru, dan penanda tangan."
+          }
+        />
+        <EmptyState
+          title="Belum ada periode"
+          description="Buat dan aktifkan periode dulu di menu Master Data → Periode."
+        />
+      </>
     );
   }
 
@@ -48,10 +54,16 @@ async function Isi({ searchParams }: { searchParams: PageProps<"/program">["sear
     daftarPeriode.find((p) => p.aktif) ??
     daftarPeriode[0];
 
-  const [programs, programIdGuru] = await Promise.all([
+  const [allPrograms, programIdGuru] = await Promise.all([
     getProgramList(dipilih.id),
     user.role === "guru" ? getProgramIdUntukGuru(user.id, dipilih.id) : Promise.resolve(null),
   ]);
+
+  // Khusus guru: hanya tampilkan program yang diampunya saja
+  const programs =
+    user.role === "guru" && programIdGuru
+      ? allPrograms.filter((p) => programIdGuru.includes(p.id))
+      : allPrograms;
 
   const grup = new Map<string, { nama: string; items: typeof programs }>();
   for (const p of programs) {
@@ -62,39 +74,39 @@ async function Isi({ searchParams }: { searchParams: PageProps<"/program">["sear
 
   return (
     <>
+      <PageHeader
+        title={user.role === "guru" ? "Program yang Diampu" : "Program & Peserta"}
+        description={
+          user.role === "guru"
+            ? "Daftar program unggulan yang Anda ampu pada periode ini. Pilih program untuk mengkonfigurasi indikator, template deskripsi, dan melihat peserta."
+            : "6 rumpun, 10 program unggulan. Pilih program untuk atur peserta, kelompok, guru, dan penanda tangan."
+        }
+      />
+
       <PeriodeSelect
         current={dipilih.id}
         options={daftarPeriode.map((p) => ({ id: p.id, label: labelPeriode(p) + (p.aktif ? " (aktif)" : "") }))}
       />
 
-      {user.role === "guru" ? (
-        <div className="rounded-xl border bg-muted/40 p-3 text-sm text-muted-foreground">
-          Pilih program yang ditugaskan kepada Anda (bertanda <span className="font-medium text-emerald-700">Program Anda</span>) untuk mengkonfigurasi indikator capaian, template deskripsi, dan melihat peserta.
-        </div>
-      ) : null}
-
-      <div className="grid gap-6">
-        {[...grup.values()].map((g) => (
-          <div key={g.nama} className="grid gap-2">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{g.nama}</h2>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {g.items.map((p) => {
-                const isDitugaskan = programIdGuru ? programIdGuru.includes(p.id) : false;
-                return (
+      {programs.length === 0 ? (
+        <EmptyState
+          title="Belum ada program yang diampu"
+          description="Anda belum ditugaskan ke program apa pun pada periode ini. Hubungi admin atau koordinator untuk ditugaskan."
+        />
+      ) : (
+        <div className="grid gap-6">
+          {[...grup.values()].map((g) => (
+            <div key={g.nama} className="grid gap-2">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{g.nama}</h2>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {g.items.map((p) => (
                   <Link
                     key={p.id}
                     href={`/program/${p.kode}`}
                     className="group flex items-center justify-between gap-3 rounded-xl border p-4 transition-colors hover:border-foreground/20 hover:bg-muted/40"
                   >
                     <div className="grid gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{p.nama}</span>
-                        {isDitugaskan ? (
-                          <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800">
-                            Program Anda
-                          </Badge>
-                        ) : null}
-                      </div>
+                      <span className="font-medium">{p.nama}</span>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
                           <UsersRound className="size-3.5" /> {p.jumlah_peserta} peserta
@@ -112,12 +124,12 @@ async function Isi({ searchParams }: { searchParams: PageProps<"/program">["sear
                       <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                     </div>
                   </Link>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
