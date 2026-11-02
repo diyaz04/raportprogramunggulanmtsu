@@ -25,43 +25,51 @@ begin
     raise exception 'Hanya admin yang boleh mereset semua data';
   end if;
 
+  -- Matikan safeupdate jika ekstensi safeupdate aktif di Postgres/Supabase
+  begin
+    perform set_config('safeupdate.enabled', 'off', true);
+  exception
+    when undefined_object then null;
+    when others then null;
+  end;
+
   -- 1. Hapus nilai siswa
-  delete from public.nilai;
+  delete from public.nilai where id is not null;
   get diagnostics v_nilai = row_count;
 
   -- 2. Hapus rapor
-  delete from public.rapor;
+  delete from public.rapor where id is not null;
   get diagnostics v_rapor = row_count;
 
   -- 3. Hapus kehadiran modul khusus
-  delete from public.kehadiran_program;
+  delete from public.kehadiran_program where id is not null;
   get diagnostics v_kehadiran = row_count;
 
   -- 4. Hapus proyek riset
-  delete from public.riset_proyek;
+  delete from public.riset_proyek where id is not null;
   get diagnostics v_riset = row_count;
 
   -- 5. Hapus setoran hafalan tahfidz
-  delete from public.tahfidz_hafalan;
+  delete from public.tahfidz_hafalan where id is not null;
   get diagnostics v_tahfidz = row_count;
 
   -- 6. Hapus prestasi lomba siswa
-  delete from public.prestasi;
+  delete from public.prestasi where id is not null;
   get diagnostics v_prestasi = row_count;
 
   -- 7. Hapus peserta program
-  delete from public.peserta_program;
+  delete from public.peserta_program where id is not null;
   get diagnostics v_peserta = row_count;
 
   -- 8. Hapus penempatan kelas siswa
-  delete from public.kelas_siswa;
+  delete from public.kelas_siswa where id is not null;
 
   -- 9. Hapus siswa
-  delete from public.siswa;
+  delete from public.siswa where id is not null;
   get diagnostics v_siswa = row_count;
 
   -- 10. Hapus rombel kelas
-  delete from public.kelas;
+  delete from public.kelas where id is not null;
   get diagnostics v_kelas = row_count;
 
   -- 11. Bersihkan kelompok_program dari penugasan_guru agar penugasan guru tetap ada di program secara umum
@@ -74,17 +82,17 @@ begin
         and pg2.periode_id = penugasan_guru.periode_id
         and pg2.kelompok_id is null
     );
-  update public.penugasan_guru set kelompok_id = null;
+  update public.penugasan_guru set kelompok_id = null where kelompok_id is not null;
 
-  delete from public.kelompok_program;
+  delete from public.kelompok_program where id is not null;
   get diagnostics v_kelompok = row_count;
 
   -- 12. Opsi reset indikator jika p_reset_indikator = true
   if p_reset_indikator then
-    delete from public.template_deskripsi;
+    delete from public.template_deskripsi where id is not null;
     get diagnostics v_template = row_count;
 
-    delete from public.indikator;
+    delete from public.indikator where id is not null;
     get diagnostics v_indikator = row_count;
   end if;
 
