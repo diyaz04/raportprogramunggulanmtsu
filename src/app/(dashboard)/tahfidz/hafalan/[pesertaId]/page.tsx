@@ -64,12 +64,18 @@ async function Isi({ params }: { params: PageProps<"/tahfidz/hafalan/[pesertaId]
       ) : (
         <div className="grid gap-3">
           {daftarJuz.map((juz) => {
-            const baris = perJuz.get(juz)!.sort((a, b) => a.ayat_awal - b.ayat_awal);
+            const baris = perJuz.get(juz)!.sort((a, b) => {
+              if (a.surat_no !== b.surat_no) return a.surat_no - b.surat_no;
+              if (a.ayat_awal !== b.ayat_awal) return a.ayat_awal - b.ayat_awal;
+              if (a.tanggal && b.tanggal) return a.tanggal.localeCompare(b.tanggal);
+              return 0;
+            });
+            const suratUnik = new Set(baris.map((b) => b.surat_no)).size;
             return (
               <details key={juz} className="group rounded-xl border p-3" open={daftarJuz.length <= 3}>
                 <summary className="flex cursor-pointer items-center justify-between font-medium">
                   <span>
-                    Juz {juz} — {baris.length} surat
+                    Juz {juz} — {suratUnik} surat{baris.length !== suratUnik ? ` (${baris.length} setoran)` : ""}
                   </span>
                 </summary>
                 <div className="mt-2 grid gap-2">

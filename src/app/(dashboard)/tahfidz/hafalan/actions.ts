@@ -36,8 +36,10 @@ const hafalanSchema = z.object({
     .transform((s) => (s === "" ? null : s)),
 });
 
-/** Tambah 1 surat. Kalau (siswa, juz, surat) sudah ada, dianggap muraja'ah: update nilai/rentang
- * TANPA mengubah `periode_setor_id` (supaya tanda "(baru)" tetap menunjuk setoran pertama). */
+/**
+ * Catat setoran hafalan (bisa per potongan ayat/hari). Setiap setoran disimpan sebagai baris baru
+ * agar riwayat setoran siswa tetap tersimpan utuh.
+ */
 export async function tambahHafalan(
   siswaId: string,
   periodeSetorId: string,
@@ -59,26 +61,15 @@ export async function tambahHafalan(
   if (parsed.data.ayat_akhir < parsed.data.ayat_awal) return gagal("Ayat akhir harus >= ayat awal");
 
   const supabase = await createClient();
-  const { data: existing } = await supabase
-    .from("tahfidz_hafalan")
-    .select("id")
-    .eq("siswa_id", siswaId)
-    .eq("juz", parsed.data.juz)
-    .eq("surat_no", parsed.data.surat_no)
-    .maybeSingle();
-
-  const { ayat_awal, ayat_akhir, nilai, tanggal, catatan } = parsed.data;
-  const { error } = existing
-    ? await supabase.from("tahfidz_hafalan").update({ ayat_awal, ayat_akhir, nilai, tanggal, catatan }).eq("id", existing.id)
-    : await supabase.from("tahfidz_hafalan").insert({
-        siswa_id: siswaId,
-        ...parsed.data,
-        periode_setor_id: periodeSetorId,
-      });
+  const { error } = await supabase.from("tahfidz_hafalan").insert({
+    siswa_id: siswaId,
+    ...parsed.data,
+    periode_setor_id: periodeSetorId,
+  });
   if (error) return gagal(pesanError(error));
 
   revalidateTahfidz();
-  return sukses(existing ? "Hafalan diperbarui (muraja'ah)" : "Hafalan ditambahkan");
+  return sukses("Setoran hafalan berhasil ditambahkan");
 }
 
 /**

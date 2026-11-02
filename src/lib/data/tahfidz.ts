@@ -51,6 +51,8 @@ export async function getSemuaSuratPerJuz(): Promise<SuratDiJuz[]> {
   }));
 }
 
+export { hitungRekapHafalan, hitungTotalAyatUnik, type RekapHafalanResult } from "@/lib/rapor/hitung";
+
 export async function getHafalanSiswa(siswaId: string): Promise<HafalanRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -58,7 +60,9 @@ export async function getHafalanSiswa(siswaId: string): Promise<HafalanRow[]> {
     .select("id, juz, surat_no, ayat_awal, ayat_akhir, nilai, periode_setor_id, catatan, tanggal, surat:surat_no(nama_latin, nama_arab)")
     .eq("siswa_id", siswaId)
     .order("juz")
-    .order("ayat_awal");
+    .order("surat_no")
+    .order("ayat_awal")
+    .order("tanggal", { ascending: true });
   const rows = (ambil(data, error, "Gagal memuat hafalan") ?? []) as unknown as {
     id: string;
     juz: number;
@@ -72,26 +76,4 @@ export async function getHafalanSiswa(siswaId: string): Promise<HafalanRow[]> {
     surat: { nama_latin: string; nama_arab: string } | null;
   }[];
   return rows.map((r) => ({ ...r, nama_latin: r.surat?.nama_latin ?? `Surat ${r.surat_no}`, nama_arab: r.surat?.nama_arab ?? "" }));
-}
-
-/** Rekap kumulatif: jumlah juz (penuh/sebagian), jumlah surat, total ayat, rata-rata nilai. */
-export function hitungRekapHafalan(baris: HafalanRow[], semuaSuratPerJuz: SuratDiJuz[]) {
-  const jumlahSurat = baris.length;
-  const totalAyat = baris.reduce((t, b) => t + (b.ayat_akhir - b.ayat_awal + 1), 0);
-  const dinilai = baris.filter((b) => b.nilai != null);
-  const rataRata = dinilai.length > 0 ? Math.round(dinilai.reduce((t, b) => t + (b.nilai ?? 0), 0) / dinilai.length) : null;
-
-  const suratPerJuzUtuh = new Map<number, number>();
-  for (const s of semuaSuratPerJuz) suratPerJuzUtuh.set(s.juz, (suratPerJuzUtuh.get(s.juz) ?? 0) + 1);
-  const dicatatPerJuz = new Map<number, number>();
-  for (const b of baris) dicatatPerJuz.set(b.juz, (dicatatPerJuz.get(b.juz) ?? 0) + 1);
-
-  let juzPenuh = 0;
-  let juzSebagian = 0;
-  for (const [juz, jumlah] of dicatatPerJuz) {
-    if (jumlah >= (suratPerJuzUtuh.get(juz) ?? Infinity)) juzPenuh++;
-    else juzSebagian++;
-  }
-
-  return { juzPenuh, juzSebagian, jumlahSurat, totalAyat, rataRata };
 }
