@@ -94,3 +94,42 @@ export async function simpanLogo(slot: "kiri" | "kanan", url: string): Promise<A
   revalidatePath("/pengaturan");
   return sukses("Logo disimpan");
 }
+
+const FRASE_RESET_SEMUA = "hapus semua data siswa";
+
+export async function resetSemuaDataAction(
+  resetIndikator: boolean,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireRole("admin");
+
+  const konfirmasi = String(formData.get("konfirmasi") ?? "").trim().toLowerCase();
+  if (konfirmasi !== FRASE_RESET_SEMUA) {
+    return gagal(`Ketik persis "${FRASE_RESET_SEMUA}" (huruf kecil semua) untuk konfirmasi.`);
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("reset_semua_data", { p_reset_indikator: resetIndikator });
+  if (error) return gagal(pesanError(error));
+
+  const d = data as {
+    siswa: number;
+    kelas: number;
+    nilai: number;
+    rapor: number;
+    kehadiran: number;
+    riset_proyek: number;
+    tahfidz_hafalan: number;
+    prestasi: number;
+    peserta_program: number;
+    kelompok_program: number;
+    indikator: number;
+    template_deskripsi: number;
+  };
+
+  revalidatePath("/", "layout");
+  return sukses(
+    `Semua data siswa berhasil direset: ${d.siswa} siswa, ${d.kelas} kelas, ${d.nilai} nilai, ${d.rapor} rapor, ${d.tahfidz_hafalan} hafalan, ${d.prestasi} prestasi telah dihapus. Akun dan guru tetap aman.`,
+  );
+}

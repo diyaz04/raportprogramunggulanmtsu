@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KopRapor } from "@/components/rapor/kop-rapor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { getPengaturan, getPeriodeList, labelPeriode } from "@/lib/data/master";
 import { LogoUploader } from "./logo-uploader";
 import { PengaturanForm } from "./pengaturan-form";
 import { ResetPeriodeDialog } from "./reset-periode-dialog";
+import { ResetSemuaDataDialog } from "./reset-semua-data-dialog";
 
 export const metadata: Metadata = { title: "Pengaturan" };
 
@@ -79,22 +81,44 @@ async function Isi() {
         </div>
       </div>
 
-      {daftarPeriode.length > 0 ? (
-        <Card className="border-destructive/30 shadow-none">
-          <CardHeader>
-            <CardTitle>Zona Berbahaya</CardTitle>
-            <CardDescription>
-              Hapus semua nilai, rapor, kehadiran, proyek riset, hafalan tahfidz, dan prestasi pada 1 periode. Biasanya
-              dipakai untuk membersihkan data uji coba sebelum madrasah mulai memakai aplikasi ini sungguhan.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResetPeriodeDialog
-              daftarPeriode={daftarPeriode.map((p) => ({ id: p.id, label: labelPeriode(p) + (p.aktif ? " (aktif)" : "") }))}
-            />
-          </CardContent>
-        </Card>
-      ) : null}
+      <Card className="border-destructive/30 shadow-none">
+        <CardHeader>
+          <CardTitle className="text-destructive flex items-center gap-2">
+            <AlertTriangle className="size-5" /> Zona Berbahaya
+          </CardTitle>
+          <CardDescription>
+            Gunakan fungsi di bawah ini dengan sangat hati-hati untuk membersihkan data uji coba.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 divide-y">
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold text-foreground">Reset Data 1 Periode Tertentu</h3>
+            <p className="text-xs text-muted-foreground">
+              Hapus nilai, rapor, kehadiran, proyek riset, hafalan tahfidz, dan prestasi hanya pada 1 periode terpilih. Data siswa, kelas, akun, dan program tetap aman.
+            </p>
+            {daftarPeriode.length > 0 ? (
+              <div className="mt-1">
+                <ResetPeriodeDialog
+                  daftarPeriode={daftarPeriode.map((p) => ({ id: p.id, label: labelPeriode(p) + (p.aktif ? " (aktif)" : "") }))}
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">Belum ada periode.</p>
+            )}
+          </div>
+
+          <div className="grid gap-2 pt-6">
+            <h3 className="text-sm font-semibold text-destructive">Reset Semua Data Siswa & Operasional (Total)</h3>
+            <p className="text-xs text-muted-foreground">
+              Hapus SEMUA data siswa, kelas rombel, kepesertaan program, nilai, rapor, kehadiran, hafalan tahfidz, dan prestasi di seluruh periode.
+              Akun login dan profil guru <b>TIDAK</b> akan ikut terhapus.
+            </p>
+            <div className="mt-1">
+              <ResetSemuaDataDialog />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
