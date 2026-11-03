@@ -75,28 +75,27 @@ async function Isi({
       ) : baris.length === 0 ? (
         <EmptyState title="Belum ada peserta" description="Daftarkan peserta dulu di menu Program & Peserta." />
       ) : (
-        <div className="rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nama</TableHead>
-                <TableHead>Kelas</TableHead>
-                <TableHead className="text-right">Hadir</TableHead>
-                <TableHead className="text-right">Sakit</TableHead>
-                <TableHead className="text-right">Izin</TableHead>
-                <TableHead className="text-right">Alpa</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {baris.map(({ peserta, kehadiran }) => (
-                <TableRow key={peserta.id}>
-                  <TableCell className="font-medium">{peserta.siswa.nama}</TableCell>
-                  <TableCell>{peserta.kelas_nama ?? "—"}</TableCell>
-                  <TableCell className="text-right">{kehadiran.hadir}</TableCell>
-                  <TableCell className="text-right">{kehadiran.sakit}</TableCell>
-                  <TableCell className="text-right">{kehadiran.izin}</TableCell>
-                  <TableCell className="text-right">{kehadiran.alpa}</TableCell>
+        <Table containerClassName="max-h-[calc(100vh-14rem)] min-h-[360px] overflow-auto rounded-xl border">
+          <TableHeader className="sticky top-0 z-20 bg-background shadow-[0_1px_0_0_var(--color-border)] [&_th]:sticky [&_th]:top-0 [&_th]:bg-background">
+            <TableRow>
+              <TableHead className="sticky top-0 left-0 z-30 bg-background shadow-[1px_0_0_0_var(--color-border)]">Nama</TableHead>
+              <TableHead>Kelas</TableHead>
+              <TableHead className="text-right">Hadir</TableHead>
+              <TableHead className="text-right">Sakit</TableHead>
+              <TableHead className="text-right">Izin</TableHead>
+              <TableHead className="text-right">Alpa</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {baris.map(({ peserta, kehadiran }) => (
+              <TableRow key={peserta.id}>
+                <TableCell className="sticky left-0 z-10 bg-background group-hover/row:bg-muted/50 transition-colors font-medium shadow-[1px_0_0_0_var(--color-border)]">{peserta.siswa.nama}</TableCell>
+                <TableCell>{peserta.kelas_nama ?? "—"}</TableCell>
+                <TableCell className="text-right">{kehadiran.hadir}</TableCell>
+                <TableCell className="text-right">{kehadiran.sakit}</TableCell>
+                <TableCell className="text-right">{kehadiran.izin}</TableCell>
+                <TableCell className="text-right">{kehadiran.alpa}</TableCell>
                   <TableCell>
                     <div className="flex justify-end">
                       <FormDialog
@@ -129,7 +128,6 @@ async function Isi({
               ))}
             </TableBody>
           </Table>
-        </div>
       )}
     </>
   );

@@ -1,13 +1,12 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, BookOpenText } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/page-header";
 import { PeriodeSelect } from "@/components/periode-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
 import { getPeriodeList, labelPeriode } from "@/lib/data/master";
 import { getPesertaProgram, getProgramByKode } from "@/lib/data/program";
+import { DaftarHafalanSiswa } from "./daftar-hafalan-siswa";
 
 export const metadata: Metadata = { title: "Hafalan Tahfidz" };
 
@@ -55,24 +54,7 @@ async function Isi({ searchParams }: { searchParams: PageProps<"/tahfidz/hafalan
           description="Daftarkan peserta dulu di menu Program & Peserta → Tahfidz Al-Qur'an → Peserta."
         />
       ) : (
-        <div className="grid gap-2">
-          {peserta.map((p) => (
-            <Link
-              key={p.id}
-              href={`/tahfidz/hafalan/${p.id}`}
-              className="group flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors hover:border-foreground/20 hover:bg-muted/40"
-            >
-              <div className="grid gap-0.5">
-                <span className="font-medium">{p.siswa.nama}</span>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <BookOpenText className="size-3.5" /> {p.kelas_nama ?? "—"}
-                  {p.kelompok_nama ? ` · ${p.kelompok_nama}` : ""}
-                </span>
-              </div>
-              <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          ))}
-        </div>
+        <DaftarHafalanSiswa peserta={peserta} />
       )}
     </>
   );

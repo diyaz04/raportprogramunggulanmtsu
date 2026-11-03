@@ -103,23 +103,22 @@ async function Isi({
           {prestasi.length === 0 ? (
             <EmptyState title="Belum ada prestasi" description="Catat riwayat lomba siswa di program ini." />
           ) : (
-            <div className="rounded-xl border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Lomba</TableHead>
-                    <TableHead>Tingkat</TableHead>
-                    <TableHead>Peringkat</TableHead>
-                    <TableHead>Tanggal</TableHead>
-                    {bolehKelola ? <TableHead className="text-right">Aksi</TableHead> : null}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {prestasi.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.siswa_nama}</TableCell>
-                      <TableCell>{p.nama_lomba}</TableCell>
+            <Table containerClassName="max-h-[calc(100vh-14rem)] min-h-[360px] overflow-auto rounded-xl border">
+              <TableHeader className="sticky top-0 z-20 bg-background shadow-[0_1px_0_0_var(--color-border)] [&_th]:sticky [&_th]:top-0 [&_th]:bg-background">
+                <TableRow>
+                  <TableHead className="sticky top-0 left-0 z-30 bg-background shadow-[1px_0_0_0_var(--color-border)]">Nama</TableHead>
+                  <TableHead>Lomba</TableHead>
+                  <TableHead>Tingkat</TableHead>
+                  <TableHead>Peringkat</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  {bolehKelola ? <TableHead className="text-right">Aksi</TableHead> : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {prestasi.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="sticky left-0 z-10 bg-background group-hover/row:bg-muted/50 transition-colors font-medium shadow-[1px_0_0_0_var(--color-border)]">{p.siswa_nama}</TableCell>
+                    <TableCell>{p.nama_lomba}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{TINGKAT_LOMBA_LABEL[p.tingkat]}</Badge>
                       </TableCell>
@@ -157,7 +156,6 @@ async function Isi({
                   ))}
                 </TableBody>
               </Table>
-            </div>
           )}
         </div>
       )}

@@ -196,17 +196,36 @@ export async function isiIndikatorBawaan(programId: string, periodeId: string, _
         urutan: i + 1,
       })),
     )
-    .select("id, keterangan");
+    .select("id, nama, keterangan");
   if (error) return gagal(pesanError(error));
 
-  // Template default (formula ID) hanya untuk program berbahasa Indonesia.
-  if (program.bahasa_utama === "id" && dibuat) {
+  if (dibuat) {
+    const seedMap = new Map(seed.map((s) => [s.nama, s]));
     const rows = dibuat.flatMap((d) => {
-      const f = templateFormulaId(d.keterangan ?? d.id);
-      return (["A", "B", "C", "D"] as const).map((kode) => ({ indikator_id: d.id, predikat_kode: kode, teks: f[kode] }));
+      const s = seedMap.get(d.nama);
+      if (s?.templates) {
+        return (["A", "B", "C", "D"] as const).map((kode) => ({
+          indikator_id: d.id,
+          predikat_kode: kode,
+          teks: s.templates![kode].teks,
+          teks_terjemahan: s.templates![kode].teks_terjemahan ?? null,
+        }));
+      }
+      if (program.bahasa_utama === "id") {
+        const f = templateFormulaId(d.keterangan ?? d.id);
+        return (["A", "B", "C", "D"] as const).map((kode) => ({
+          indikator_id: d.id,
+          predikat_kode: kode,
+          teks: f[kode],
+          teks_terjemahan: null,
+        }));
+      }
+      return [];
     });
-    const { error: et } = await supabase.from("template_deskripsi").insert(rows);
-    if (et) return gagal(`Indikator dibuat, tetapi template bawaan gagal disimpan: ${et.message}`);
+    if (rows.length > 0) {
+      const { error: et } = await supabase.from("template_deskripsi").insert(rows);
+      if (et) return gagal(`Indikator dibuat, tetapi template bawaan gagal disimpan: ${et.message}`);
+    }
   }
 
   revalidateProgram();

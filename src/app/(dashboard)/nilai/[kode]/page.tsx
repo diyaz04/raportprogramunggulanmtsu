@@ -173,77 +173,75 @@ async function Isi({
           description="Daftarkan peserta dulu di menu Peserta (Program & Peserta)."
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">No</TableHead>
-                <TableHead className="sticky left-0 z-10 bg-background">Nama</TableHead>
-                <TableHead>Kelas</TableHead>
-                <TableHead>Kelompok</TableHead>
-                {kolom.map((k) => (
-                  <TableHead key={k.id} className="min-w-28">
-                    <div>
-                      <span>{k.nama}</span>
-                      {k.tingkat ? (
-                        <span className="ml-1 inline-block text-[10px] text-muted-foreground font-normal">
-                          (Kelas {k.tingkat})
-                        </span>
-                      ) : null}
-                    </div>
-                  </TableHead>
-                ))}
-                <TableHead className="w-10">Deskripsi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {baris.map((b, i) => (
-                <TableRow key={b.id}>
-                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                  <TableCell className="sticky left-0 z-10 bg-background font-medium">{b.siswa.nama}</TableCell>
-                  <TableCell>{b.kelas_nama ?? "—"}</TableCell>
-                  <TableCell>{b.kelompok_nama ?? "—"}</TableCell>
-                  {kolom.map((k) => {
-                    // Jika kolom terikat ke tingkat kelas tertentu yang tidak sesuai dengan tingkat kelas siswa:
-                    const tidakCocokTingkat =
-                      k.tingkat !== null && b.kelas_tingkat !== null && k.tingkat !== b.kelas_tingkat;
-
-                    return (
-                      <TableCell key={k.id}>
-                        {tidakCocokTingkat ? (
-                          <span
-                            className="inline-block w-8 text-center text-xs text-muted-foreground/40 font-mono select-none"
-                            title={`Indikator ini khusus Kelas ${k.tingkat}`}
-                          >
-                            —
-                          </span>
-                        ) : (
-                          <NilaiCell
-                            pesertaProgramId={b.id}
-                            indikatorId={k.id}
-                            nilaiAwal={b.nilai[k.id]?.nilai}
-                            skala={skala}
-                          />
-                        )}
-                      </TableCell>
-                    );
-                  })}
-                  <TableCell>
-                    <DeskripsiSheet
-                      siswaNama={b.siswa.nama}
-                      siswaJk={b.siswa.jk}
-                      bahasaUtama={program.bahasa_utama}
-                      tampilkanTerjemahan={program.tampilkan_terjemahan}
-                      kolom={kolom.filter((k) => k.tingkat === null || b.kelas_tingkat === null || k.tingkat === b.kelas_tingkat)}
-                      nilaiSiswa={b.nilai}
-                      skala={skala}
-                    />
-                  </TableCell>
-                </TableRow>
+        <Table containerClassName="max-h-[calc(100vh-14rem)] min-h-[360px] overflow-auto rounded-xl border">
+          <TableHeader className="sticky top-0 z-20 bg-background shadow-[0_1px_0_0_var(--color-border)] [&_th]:sticky [&_th]:top-0 [&_th]:bg-background">
+            <TableRow>
+              <TableHead className="w-12 min-w-12 max-w-12 sticky top-0 left-0 z-30 bg-background text-center">No</TableHead>
+              <TableHead className="sticky top-0 left-12 z-30 bg-background shadow-[1px_0_0_0_var(--color-border)]">Nama</TableHead>
+              <TableHead>Kelas</TableHead>
+              <TableHead>Kelompok</TableHead>
+              {kolom.map((k) => (
+                <TableHead key={k.id} className="min-w-28">
+                  <div>
+                    <span>{k.nama}</span>
+                    {k.tingkat ? (
+                      <span className="ml-1 inline-block text-[10px] text-muted-foreground font-normal">
+                        (Kelas {k.tingkat})
+                      </span>
+                    ) : null}
+                  </div>
+                </TableHead>
               ))}
-            </TableBody>
-          </Table>
-        </div>
+              <TableHead className="w-10">Deskripsi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {baris.map((b, i) => (
+              <TableRow key={b.id}>
+                <TableCell className="w-12 min-w-12 max-w-12 sticky left-0 z-10 bg-background group-hover/row:bg-muted/50 transition-colors text-center text-muted-foreground">{i + 1}</TableCell>
+                <TableCell className="sticky left-12 z-10 bg-background group-hover/row:bg-muted/50 transition-colors font-medium shadow-[1px_0_0_0_var(--color-border)]">{b.siswa.nama}</TableCell>
+                <TableCell>{b.kelas_nama ?? "—"}</TableCell>
+                <TableCell>{b.kelompok_nama ?? "—"}</TableCell>
+                {kolom.map((k) => {
+                  // Jika kolom terikat ke tingkat kelas tertentu yang tidak sesuai dengan tingkat kelas siswa:
+                  const tidakCocokTingkat =
+                    k.tingkat !== null && b.kelas_tingkat !== null && k.tingkat !== b.kelas_tingkat;
+
+                  return (
+                    <TableCell key={k.id}>
+                      {tidakCocokTingkat ? (
+                        <span
+                          className="inline-block w-8 text-center text-xs text-muted-foreground/40 font-mono select-none"
+                          title={`Indikator ini khusus Kelas ${k.tingkat}`}
+                        >
+                          —
+                        </span>
+                      ) : (
+                        <NilaiCell
+                          pesertaProgramId={b.id}
+                          indikatorId={k.id}
+                          nilaiAwal={b.nilai[k.id]?.nilai}
+                          skala={skala}
+                        />
+                      )}
+                    </TableCell>
+                  );
+                })}
+                <TableCell>
+                  <DeskripsiSheet
+                    siswaNama={b.siswa.nama}
+                    siswaJk={b.siswa.jk}
+                    bahasaUtama={program.bahasa_utama}
+                    tampilkanTerjemahan={program.tampilkan_terjemahan}
+                    kolom={kolom.filter((k) => k.tingkat === null || b.kelas_tingkat === null || k.tingkat === b.kelas_tingkat)}
+                    nilaiSiswa={b.nilai}
+                    skala={skala}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </>
   );
