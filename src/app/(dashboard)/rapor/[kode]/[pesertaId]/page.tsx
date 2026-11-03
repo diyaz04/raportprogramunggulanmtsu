@@ -9,7 +9,7 @@ import { RaporA4 } from "@/components/rapor/rapor-a4";
 import { RaporA4Scaled } from "@/components/rapor/rapor-a4-scaled";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { requireRole } from "@/lib/auth";
+import { bisaNilaiPeserta, requireRole } from "@/lib/auth";
 import { getSkalaPredikatGlobal } from "@/lib/data/indikator";
 import { getPesertaProgramById } from "@/lib/data/program";
 import { getRaporSatu, rakitDataRapor, STATUS_RAPOR_LABEL, type StatusRapor } from "@/lib/data/rapor";
@@ -27,11 +27,20 @@ export default function DetailRaporPage(props: PageProps<"/rapor/[kode]/[peserta
 }
 
 async function Isi({ params }: { params: PageProps<"/rapor/[kode]/[pesertaId]">["params"] }) {
-  await requireRole("admin", "koordinator", "guru", "kepala");
+  const user = await requireRole("admin", "koordinator", "guru", "kepala");
   const { kode, pesertaId } = await params;
 
   const peserta = await getPesertaProgramById(pesertaId);
   if (!peserta) notFound();
+
+  if (user.role === "guru" && !(await bisaNilaiPeserta(user, pesertaId))) {
+    return (
+      <EmptyState
+        title="Akses Dibatasi"
+        description="Anda hanya memiliki hak akses untuk siswa di kelas atau kelompok yang ditugaskan kepada Anda."
+      />
+    );
+  }
 
   const [rapor, skala] = await Promise.all([getRaporSatu(pesertaId), getSkalaPredikatGlobal()]);
   const status: StatusRapor = rapor?.status ?? "draft";

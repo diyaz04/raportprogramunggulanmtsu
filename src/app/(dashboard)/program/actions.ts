@@ -112,16 +112,47 @@ export async function tambahGuruProgram(
   const guru_id = String(formData.get("guru_id") ?? "");
   if (!guru_id) return gagal("Pilih guru");
 
-  const kelompokRaw = String(formData.get("kelompok_id") ?? "");
-  const kelompok_id = kelompokRaw === "" ? null : kelompokRaw;
+  const cakupanRaw = String(formData.get("cakupan") ?? formData.get("kelompok_id") ?? "");
+  let kelompok_id: string | null = null;
+  let kelas_id: string | null = null;
+
+  if (cakupanRaw.startsWith("kelas:")) {
+    kelas_id = cakupanRaw.slice(6) || null;
+  } else if (cakupanRaw.startsWith("kelompok:")) {
+    kelompok_id = cakupanRaw.slice(9) || null;
+  } else if (cakupanRaw && cakupanRaw !== "semua") {
+    kelompok_id = cakupanRaw;
+  }
+
+  // Cek jika kelas_id dikirim langsung lewat field terpisah
+  const explicitKelas = String(formData.get("kelas_id") ?? "");
+  if (explicitKelas) {
+    kelas_id = explicitKelas;
+    kelompok_id = null;
+  }
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("penugasan_guru")
-    .insert({ program_id: programId, periode_id: periodeId, guru_id, kelompok_id });
+  const payload: {
+    program_id: string;
+    periode_id: string;
+    guru_id: string;
+    kelompok_id: string | null;
+    kelas_id?: string | null;
+  } = { program_id: programId, periode_id: periodeId, guru_id, kelompok_id };
+
+  if (kelas_id) {
+    payload.kelas_id = kelas_id;
+  }
+
+  const { error } = await supabase.from("penugasan_guru").insert(payload);
 
   if (error) {
-    return gagal(pesanError(error, { duplikat: "Guru tersebut sudah ditugaskan ke program/kelompok ini." }));
+    if (error.message.includes("kelas_id")) {
+      return gagal(
+        "Kolom kelas_id belum ada di database. Silakan jalankan file migrasi 20261103000000_penugasan_kelas.sql di SQL Editor Supabase.",
+      );
+    }
+    return gagal(pesanError(error, { duplikat: "Guru tersebut sudah ditugaskan ke cakupan/kelas ini." }));
   }
 
   revalidateProgram();

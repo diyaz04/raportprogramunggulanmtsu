@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth";
-import { getPeriodeList, labelPeriode } from "@/lib/data/master";
+import { getKelasByPeriode, getPeriodeList, labelPeriode } from "@/lib/data/master";
 import {
   getKelompokProgram,
   getPenandaTangan,
@@ -53,11 +53,12 @@ async function Isi({
     daftarPeriode.find((p) => p.aktif) ??
     daftarPeriode[0];
 
-  const [kelompok, penugasan, penandaTangan, profil] = await Promise.all([
+  const [kelompok, penugasan, penandaTangan, profil, daftarKelas] = await Promise.all([
     getKelompokProgram(program.id, dipilih.id),
     getPenugasanGuru(program.id, dipilih.id),
     getPenandaTangan(program.id, dipilih.id),
     getProfilAktif(),
+    getKelasByPeriode(dipilih.id),
   ]);
 
   return (
@@ -93,17 +94,32 @@ async function Isi({
               </NativeSelect>
             </Field>
             <Field
-              label="Cakupan"
-              htmlFor="kelompok_id"
-              hint="Guru untuk seluruh program, atau hanya satu kelompok/halaqah."
+              label="Cakupan Penugasan"
+              htmlFor="cakupan"
+              hint="Guru untuk seluruh program, spesifik kelas (mis. KSM), atau satu kelompok/halaqah."
             >
-              <NativeSelect id="kelompok_id" name="kelompok_id" className="w-full" defaultValue="">
-                <NativeSelectOption value="">Seluruh program</NativeSelectOption>
-                {kelompok.map((k) => (
-                  <NativeSelectOption key={k.id} value={k.id}>
-                    {k.nama}
-                  </NativeSelectOption>
-                ))}
+              <NativeSelect id="cakupan" name="cakupan" className="w-full" defaultValue="">
+                <optgroup label="Umum">
+                  <NativeSelectOption value="">Seluruh program</NativeSelectOption>
+                </optgroup>
+                {daftarKelas.length > 0 && (
+                  <optgroup label="Spesifik Kelas">
+                    {daftarKelas.map((k) => (
+                      <NativeSelectOption key={k.id} value={`kelas:${k.id}`}>
+                        Kelas {k.nama} (Tingkat {k.tingkat})
+                      </NativeSelectOption>
+                    ))}
+                  </optgroup>
+                )}
+                {kelompok.length > 0 && (
+                  <optgroup label="Spesifik Kelompok">
+                    {kelompok.map((k) => (
+                      <NativeSelectOption key={k.id} value={`kelompok:${k.id}`}>
+                        Kelompok {k.nama}
+                      </NativeSelectOption>
+                    ))}
+                  </optgroup>
+                )}
               </NativeSelect>
             </Field>
           </FormDialog>
@@ -113,28 +129,38 @@ async function Isi({
           <EmptyState title="Belum ada guru ditugaskan" description="Klik Tugaskan guru untuk menambahkan." />
         ) : (
           <div className="grid gap-2">
-            {penugasan.map((p) => (
-              <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
-                <div className="grid gap-0.5">
-                  <span className="font-medium">{p.guru.nama}</span>
-                  {p.guru.nip ? <span className="text-xs text-muted-foreground">NIP. {p.guru.nip}</span> : null}
+            {penugasan.map((p) => {
+              const labelCakupan = p.kelas_nama
+                ? `Kelas ${p.kelas_nama}`
+                : p.kelompok_nama
+                ? `Kelompok ${p.kelompok_nama}`
+                : "Seluruh program";
+              return (
+                <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
+                  <div className="grid gap-0.5">
+                    <span className="font-medium">{p.guru.nama}</span>
+                    {p.guru.nip ? <span className="text-xs text-muted-foreground">NIP. {p.guru.nip}</span> : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={p.kelas_nama ? "default" : p.kelompok_nama ? "secondary" : "outline"}>
+                      {labelCakupan}
+                    </Badge>
+                    <FormDialog
+                      trigger={
+                        <Button variant="ghost" size="icon-sm" aria-label={`Hapus penugasan ${p.guru.nama}`}>
+                          <UserMinus />
+                        </Button>
+                      }
+                      title={`Hapus penugasan ${p.guru.nama}?`}
+                      description={`Cakupan: ${labelCakupan}`}
+                      submitLabel="Hapus"
+                      destructive
+                      action={hapusGuruProgram.bind(null, p.id)}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{p.kelompok_nama ?? "Seluruh program"}</Badge>
-                  <FormDialog
-                    trigger={
-                      <Button variant="ghost" size="icon-sm" aria-label={`Hapus penugasan ${p.guru.nama}`}>
-                        <UserMinus />
-                      </Button>
-                    }
-                    title={`Hapus penugasan ${p.guru.nama}?`}
-                    submitLabel="Hapus"
-                    destructive
-                    action={hapusGuruProgram.bind(null, p.id)}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

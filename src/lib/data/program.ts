@@ -42,6 +42,7 @@ export type SiswaRingkas = { id: string; nis: string; nisn: string | null; nama:
 export type PesertaProgram = {
   id: string;
   siswa: SiswaRingkas;
+  kelas_id: string | null;
   kelas_nama: string | null;
   kelas_tingkat: number | null;
   kelompok_id: string | null;
@@ -50,7 +51,15 @@ export type PesertaProgram = {
 
 export type GuruRingkas = { id: string; nama: string; nip: string | null };
 
-export type PenugasanGuru = { id: string; guru: GuruRingkas; kelompok_id: string | null; kelompok_nama: string | null };
+export type PenugasanGuru = {
+  id: string;
+  guru: GuruRingkas;
+  kelompok_id: string | null;
+  kelompok_nama: string | null;
+  kelas_id: string | null;
+  kelas_nama: string | null;
+  kelas_tingkat: number | null;
+};
 
 export type PenandaTangan = { id: string; guru: GuruRingkas; label_jabatan: string; urutan: number };
 
@@ -156,14 +165,20 @@ export async function getPesertaProgram(programId: string, periodeId: string): P
 
   const { data: ks, error: ke } = await supabase
     .from("kelas_siswa")
-    .select("siswa_id, kelas:kelas_id(nama, tingkat)")
+    .select("siswa_id, kelas_id, kelas:kelas_id(nama, tingkat)")
     .eq("periode_id", periodeId)
     .in("siswa_id", rows.map((r) => r.siswa.id));
   const kelasRows = (ambil(ks, ke, "Gagal memuat kelas siswa") ?? []) as unknown as {
     siswa_id: string;
+    kelas_id: string;
     kelas: { nama: string; tingkat: number } | null;
   }[];
-  const kelasPerSiswa = new Map(kelasRows.map((k) => [k.siswa_id, k.kelas]));
+  const kelasPerSiswa = new Map(
+    kelasRows.map((k) => [
+      k.siswa_id,
+      { id: k.kelas_id, nama: k.kelas?.nama ?? null, tingkat: k.kelas?.tingkat ?? null },
+    ]),
+  );
 
   return rows
     .map((r) => {
@@ -171,6 +186,7 @@ export async function getPesertaProgram(programId: string, periodeId: string): P
       return {
         id: r.id,
         siswa: r.siswa,
+        kelas_id: k?.id ?? null,
         kelas_nama: k?.nama ?? null,
         kelas_tingkat: k?.tingkat ?? null,
         kelompok_id: r.kelompok_id,
@@ -221,39 +237,114 @@ export const getProgramIdUntukGuru = cache(async (guruId: string, periodeId: str
   return [...new Set(rows.map((r) => r.program_id))];
 });
 
+export type IzinAksesGuru = {
+  semua: boolean;
+  kelompokIds: string[];
+  kelasIds: string[];
+};
+
+/** Mendapatkan izin akses guru: apakah seluruh program, atau dibatasi kelompok/kelas tertentu. */
+export async function getIzinAksesGuru(
+  programId: string,
+  periodeId: string,
+  guruId: string,
+): Promise<IzinAksesGuru> {
+  const supabase = await createClient();
+  const res = await supabase
+    .from("penugasan_guru")
+    .select("kelompok_id, kelas_id")
+    .eq("program_id", programId)
+    .eq("periode_id", periodeId)
+    .eq("guru_id", guruId);
+
+  let rows: { kelompok_id: string | null; kelas_id?: string | null }[] = [];
+  if (res.error && res.error.message.includes("kelas_id")) {
+    const fallbackRes = await supabase
+      .from("penugasan_guru")
+      .select("kelompok_id")
+      .eq("program_id", programId)
+      .eq("periode_id", periodeId)
+      .eq("guru_id", guruId);
+    rows = ambil(fallbackRes.data, fallbackRes.error, "Gagal memuat penugasan guru") ?? [];
+  } else {
+    rows = ambil(res.data, res.error, "Gagal memuat penugasan guru") ?? [];
+  }
+
+  if (rows.length === 0) {
+    return { semua: false, kelompokIds: [], kelasIds: [] };
+  }
+  if (rows.some((r) => r.kelompok_id === null && (!r.kelas_id || r.kelas_id === null))) {
+    return { semua: true, kelompokIds: [], kelasIds: [] };
+  }
+  const kelompokIds = rows.map((r) => r.kelompok_id).filter((id): id is string => id !== null);
+  const kelasIds = rows.map((r) => r.kelas_id ?? null).filter((id): id is string => id !== null);
+  return { semua: false, kelompokIds, kelasIds };
+}
+
 /** "semua" = guru ditugaskan ke seluruh program; array = hanya kelompok-kelompok ini yang boleh diakses. */
 export async function getKelompokIzinGuru(
   programId: string,
   periodeId: string,
   guruId: string,
 ): Promise<"semua" | string[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("penugasan_guru")
-    .select("kelompok_id")
-    .eq("program_id", programId)
-    .eq("periode_id", periodeId)
-    .eq("guru_id", guruId);
-  const rows = ambil(data, error, "Gagal memuat penugasan guru") ?? [];
-  if (rows.some((r) => r.kelompok_id === null)) return "semua";
-  return rows.map((r) => r.kelompok_id).filter((id): id is string => id !== null);
+  const izin = await getIzinAksesGuru(programId, periodeId, guruId);
+  if (izin.semua) return "semua";
+  return izin.kelompokIds;
 }
 
 export async function getPenugasanGuru(programId: string, periodeId: string): Promise<PenugasanGuru[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const res = await supabase
     .from("penugasan_guru")
-    .select("id, kelompok_id, guru:guru_id(id, nama, nip), kelompok:kelompok_id(nama)")
+    .select(
+      "id, kelompok_id, kelas_id, guru:guru_id(id, nama, nip), kelompok:kelompok_id(nama), kelas:kelas_id(nama, tingkat)",
+    )
     .eq("program_id", programId)
     .eq("periode_id", periodeId);
-  const rows = (ambil(data, error, "Gagal memuat penugasan guru") ?? []) as unknown as {
+
+  if (res.error && res.error.message.includes("kelas_id")) {
+    const fallback = await supabase
+      .from("penugasan_guru")
+      .select("id, kelompok_id, guru:guru_id(id, nama, nip), kelompok:kelompok_id(nama)")
+      .eq("program_id", programId)
+      .eq("periode_id", periodeId);
+    const fallbackRows = (ambil(fallback.data, fallback.error, "Gagal memuat penugasan guru") ?? []) as unknown as {
+      id: string;
+      kelompok_id: string | null;
+      guru: GuruRingkas;
+      kelompok: { nama: string } | null;
+    }[];
+    return fallbackRows
+      .map((r) => ({
+        id: r.id,
+        guru: r.guru,
+        kelompok_id: r.kelompok_id,
+        kelompok_nama: r.kelompok?.nama ?? null,
+        kelas_id: null,
+        kelas_nama: null,
+        kelas_tingkat: null,
+      }))
+      .sort((a, b) => a.guru.nama.localeCompare(b.guru.nama, "id"));
+  }
+
+  const rows = (ambil(res.data, res.error, "Gagal memuat penugasan guru") ?? []) as unknown as {
     id: string;
     kelompok_id: string | null;
+    kelas_id: string | null;
     guru: GuruRingkas;
     kelompok: { nama: string } | null;
+    kelas: { nama: string; tingkat: number } | null;
   }[];
   return rows
-    .map((r) => ({ id: r.id, guru: r.guru, kelompok_id: r.kelompok_id, kelompok_nama: r.kelompok?.nama ?? null }))
+    .map((r) => ({
+      id: r.id,
+      guru: r.guru,
+      kelompok_id: r.kelompok_id,
+      kelompok_nama: r.kelompok?.nama ?? null,
+      kelas_id: r.kelas_id,
+      kelas_nama: r.kelas?.nama ?? null,
+      kelas_tingkat: r.kelas?.tingkat ?? null,
+    }))
     .sort((a, b) => a.guru.nama.localeCompare(b.guru.nama, "id"));
 }
 

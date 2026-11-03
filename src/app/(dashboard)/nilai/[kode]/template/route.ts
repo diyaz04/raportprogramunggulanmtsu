@@ -1,8 +1,8 @@
 import ExcelJS from "exceljs";
 import { getCurrentUser } from "@/lib/auth";
 import { getPeriodeList, labelPeriode } from "@/lib/data/master";
-import { filterBarisKelompok, getGridNilai } from "@/lib/data/nilai";
-import { getKelompokIzinGuru, getProgramByKode } from "@/lib/data/program";
+import { filterBarisIzin, getGridNilai } from "@/lib/data/nilai";
+import { getIzinAksesGuru, getProgramByKode } from "@/lib/data/program";
 
 // Unduh Excel terisi nilai saat ini (bukan template kosong) — supaya guru tinggal mengoreksi
 // di Excel lalu import ulang. Kolom NIS dipakai untuk mencocokkan baris saat diimpor kembali.
@@ -21,13 +21,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ kode
   const periode = daftarPeriode.find((p) => p.id === periodeId) ?? daftarPeriode.find((p) => p.aktif) ?? daftarPeriode[0];
   if (!periode) return new Response("Periode tidak ditemukan", { status: 404 });
 
-  const kelompokIzin = user.role === "guru" ? await getKelompokIzinGuru(program.id, periode.id, user.id) : "semua";
-  if (kelompokIzin !== "semua" && kelompokIzin.length === 0) {
+  const izinAkses =
+    user.role === "guru"
+      ? await getIzinAksesGuru(program.id, periode.id, user.id)
+      : { semua: true, kelompokIds: [], kelasIds: [] };
+
+  if (!izinAkses.semua && izinAkses.kelompokIds.length === 0 && izinAkses.kelasIds.length === 0) {
     return new Response("Anda belum ditugaskan ke program ini", { status: 403 });
   }
 
   const { baris: semuaBaris, kolom } = await getGridNilai(program.id, periode.id, tingkat);
-  const baris = filterBarisKelompok(semuaBaris, kelompokIzin);
+  const baris = filterBarisIzin(semuaBaris, izinAkses);
   if (kolom.length === 0) return new Response("Belum ada indikator aktif untuk program ini", { status: 400 });
 
   const workbook = new ExcelJS.Workbook();

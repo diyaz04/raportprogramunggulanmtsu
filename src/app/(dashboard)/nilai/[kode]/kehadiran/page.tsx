@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requireRole } from "@/lib/auth";
 import { getPeriodeList, labelPeriode } from "@/lib/data/master";
 import { getKehadiranProgram } from "@/lib/data/modul-khusus";
-import { getKelompokIzinGuru, getProgramByKode } from "@/lib/data/program";
+import { getIzinAksesGuru, getProgramByKode } from "@/lib/data/program";
 import { simpanKehadiran } from "@/app/(dashboard)/program/[kode]/modul-khusus-actions";
 import { NilaiSubnav } from "../nilai-subnav";
 
@@ -48,12 +48,19 @@ async function Isi({
     daftarPeriode.find((p) => p.aktif) ??
     daftarPeriode[0];
 
-  const kelompokIzin = user.role === "guru" ? await getKelompokIzinGuru(program.id, dipilih.id, user.id) : "semua";
+  const izinAkses =
+    user.role === "guru"
+      ? await getIzinAksesGuru(program.id, dipilih.id, user.id)
+      : { semua: true, kelompokIds: [], kelasIds: [] };
   const semuaBaris = await getKehadiranProgram(program.id, dipilih.id);
   const baris =
-    kelompokIzin === "semua"
+    izinAkses.semua
       ? semuaBaris
-      : semuaBaris.filter((b) => b.peserta.kelompok_id !== null && kelompokIzin.includes(b.peserta.kelompok_id));
+      : semuaBaris.filter((b) => {
+          if (b.peserta.kelompok_id && izinAkses.kelompokIds.includes(b.peserta.kelompok_id)) return true;
+          if (b.peserta.kelas_id && izinAkses.kelasIds.includes(b.peserta.kelas_id)) return true;
+          return false;
+        });
 
   return (
     <>
@@ -67,7 +74,7 @@ async function Isi({
 
       <NilaiSubnav kode={kode} tampilkanPrestasi={program.jenis === "ksm"} />
 
-      {kelompokIzin !== "semua" && kelompokIzin.length === 0 ? (
+      {!izinAkses.semua && izinAkses.kelompokIds.length === 0 && izinAkses.kelasIds.length === 0 ? (
         <EmptyState
           title="Anda belum ditugaskan ke program ini"
           description="Hubungi admin/koordinator untuk ditugaskan terlebih dahulu."

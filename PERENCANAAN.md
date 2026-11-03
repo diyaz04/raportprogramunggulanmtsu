@@ -498,7 +498,7 @@ template_deskripsi  (indikator_id, predikat_kode, teks, teks_terjemahan)  -- + k
 kelompok_program    (id, program_id, periode_id, nama)        -- mis. "Halaqah 1", "English Club A"
 peserta_program     (id, periode_id, program_id, siswa_id, kelompok_id NULL)
                      UNIQUE(periode, program, siswa)
-penugasan_guru      (guru_id, program_id, periode_id, kelompok_id NULL=semua)
+penugasan_guru      (guru_id, program_id, periode_id, kelompok_id NULL=semua, kelas_id NULL=semua)
 penanda_tangan      (program_id, periode_id, guru_id, label_jabatan, urutan 1–3)
                      -- CHECK maks. 3 per program per periode
 

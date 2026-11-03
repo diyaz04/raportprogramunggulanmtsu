@@ -11,8 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requireRole } from "@/lib/auth";
 import { getSkalaPredikatGlobal } from "@/lib/data/indikator";
 import { getPeriodeList, labelPeriode } from "@/lib/data/master";
-import { filterBarisKelompok, getGridNilai } from "@/lib/data/nilai";
-import { getKelompokIzinGuru, getProgramByKode } from "@/lib/data/program";
+import { filterBarisIzin, getGridNilai } from "@/lib/data/nilai";
+import { getIzinAksesGuru, getProgramByKode } from "@/lib/data/program";
 import { cn } from "cn";
 import { DeskripsiSheet } from "./deskripsi-sheet";
 import { ImportNilaiDialog } from "./import-nilai-dialog";
@@ -60,8 +60,12 @@ async function Isi({
     daftarPeriode.find((p) => p.aktif) ??
     daftarPeriode[0];
 
-  const kelompokIzin = user.role === "guru" ? await getKelompokIzinGuru(program.id, dipilih.id, user.id) : "semua";
-  if (kelompokIzin !== "semua" && kelompokIzin.length === 0) {
+  const izinAkses =
+    user.role === "guru"
+      ? await getIzinAksesGuru(program.id, dipilih.id, user.id)
+      : { semua: true, kelompokIds: [], kelasIds: [] };
+
+  if (!izinAkses.semua && izinAkses.kelompokIds.length === 0 && izinAkses.kelasIds.length === 0) {
     return (
       <EmptyState
         title="Anda belum ditugaskan ke program ini"
@@ -75,7 +79,7 @@ async function Isi({
     getSkalaPredikatGlobal(),
   ]);
 
-  const baris = filterBarisKelompok(semuaBaris, kelompokIzin);
+  const baris = filterBarisIzin(semuaBaris, izinAkses);
 
   const tabsTingkat = [
     { label: "Semua Tingkat", value: "" },

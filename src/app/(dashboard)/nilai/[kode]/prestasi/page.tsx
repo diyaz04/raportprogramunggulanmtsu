@@ -14,7 +14,8 @@ import { bisaKelolaPrestasi, getCurrentUser } from "@/lib/auth";
 import { getPeriodeList, labelPeriode } from "@/lib/data/master";
 import { getPrestasiProgram, TINGKAT_LOMBA_LABEL, type TingkatLomba } from "@/lib/data/modul-khusus";
 import { formatTanggal } from "@/lib/format";
-import { getKelompokIzinGuru, getPesertaProgram, getProgramByKode } from "@/lib/data/program";
+import { filterBarisIzin } from "@/lib/data/nilai";
+import { getIzinAksesGuru, getPesertaProgram, getProgramByKode } from "@/lib/data/program";
 import { hapusPrestasi, simpanPrestasi } from "@/app/(dashboard)/program/[kode]/modul-khusus-actions";
 import { NilaiSubnav } from "../nilai-subnav";
 
@@ -53,19 +54,19 @@ async function Isi({
     daftarPeriode.find((p) => p.aktif) ??
     daftarPeriode[0];
 
-  const kelompokIzin = user.role === "guru" ? await getKelompokIzinGuru(program.id, dipilih.id, user.id) : "semua";
+  const izinAkses =
+    user.role === "guru"
+      ? await getIzinAksesGuru(program.id, dipilih.id, user.id)
+      : { semua: true, kelompokIds: [], kelasIds: [] };
   const [prestasiSemua, pesertaSemua, bolehKelola] = await Promise.all([
     getPrestasiProgram(program.id),
     getPesertaProgram(program.id, dipilih.id),
     bisaKelolaPrestasi(user, program.id),
   ]);
 
-  const peserta =
-    kelompokIzin === "semua"
-      ? pesertaSemua
-      : pesertaSemua.filter((p) => p.kelompok_id !== null && kelompokIzin.includes(p.kelompok_id));
+  const peserta = filterBarisIzin(pesertaSemua, izinAkses);
   const idSiswaDiizinkan = new Set(peserta.map((p) => p.siswa.id));
-  const prestasi = kelompokIzin === "semua" ? prestasiSemua : prestasiSemua.filter((p) => idSiswaDiizinkan.has(p.siswa_id));
+  const prestasi = izinAkses.semua ? prestasiSemua : prestasiSemua.filter((p) => idSiswaDiizinkan.has(p.siswa_id));
 
   return (
     <>

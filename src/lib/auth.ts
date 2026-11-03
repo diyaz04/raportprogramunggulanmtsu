@@ -89,7 +89,7 @@ export async function requireKelolaProgram(programId: string, periodeId: string)
 
 /**
  * Admin & koordinator selalu boleh. Guru boleh isi nilai peserta ini kalau ditugaskan ke SELURUH
- * program, atau ditugaskan khusus ke kelompok tempat peserta itu berada (sinkron dengan RLS `guru_bisa_nilai`).
+ * program, atau ditugaskan khusus ke kelompok/kelas tempat peserta itu berada (sinkron dengan RLS `guru_bisa_nilai`).
  */
 export async function bisaNilaiPeserta(user: CurrentUser, pesertaProgramId: string): Promise<boolean> {
   if (user.role === "admin" || user.role === "koordinator") return true;
@@ -98,30 +98,57 @@ export async function bisaNilaiPeserta(user: CurrentUser, pesertaProgramId: stri
   const supabase = await createClient();
   const { data: peserta } = await supabase
     .from("peserta_program")
-    .select("program_id, periode_id, kelompok_id")
+    .select("siswa_id, program_id, periode_id, kelompok_id")
     .eq("id", pesertaProgramId)
     .maybeSingle();
   if (!peserta) return false;
 
-  const { count: seluruhProgram } = await supabase
+  // Cek penugasan guru di program dan periode ini
+  const res = await supabase
     .from("penugasan_guru")
-    .select("id", { count: "exact", head: true })
+    .select("kelompok_id, kelas_id")
     .eq("program_id", peserta.program_id)
     .eq("periode_id", peserta.periode_id)
-    .eq("guru_id", user.id)
-    .is("kelompok_id", null);
-  if (seluruhProgram && seluruhProgram > 0) return true;
+    .eq("guru_id", user.id);
 
-  if (!peserta.kelompok_id) return false;
+  let rows: { kelompok_id: string | null; kelas_id?: string | null }[] = [];
+  if (res.error && res.error.message.includes("kelas_id")) {
+    const fallbackRes = await supabase
+      .from("penugasan_guru")
+      .select("kelompok_id")
+      .eq("program_id", peserta.program_id)
+      .eq("periode_id", peserta.periode_id)
+      .eq("guru_id", user.id);
+    rows = fallbackRes.data ?? [];
+  } else {
+    rows = res.data ?? [];
+  }
 
-  const { count: kelompokIni } = await supabase
-    .from("penugasan_guru")
-    .select("id", { count: "exact", head: true })
-    .eq("program_id", peserta.program_id)
-    .eq("periode_id", peserta.periode_id)
-    .eq("guru_id", user.id)
-    .eq("kelompok_id", peserta.kelompok_id);
-  return !!kelompokIni && kelompokIni > 0;
+  if (rows.length === 0) return false;
+
+  // 1. Ditugaskan ke SELURUH program (kelompok & kelas null)
+  if (rows.some((p) => p.kelompok_id === null && (!p.kelas_id || p.kelas_id === null))) {
+    return true;
+  }
+
+  // 2. Ditugaskan khusus ke KELOMPOK peserta
+  if (peserta.kelompok_id && rows.some((p) => p.kelompok_id === peserta.kelompok_id)) {
+    return true;
+  }
+
+  // 3. Ditugaskan khusus ke KELAS peserta
+  const penugasanKelasIds = rows.map((p) => p.kelas_id ?? null).filter((id): id is string => id !== null);
+  if (penugasanKelasIds.length > 0) {
+    const { count: kelasCocok } = await supabase
+      .from("kelas_siswa")
+      .select("id", { count: "exact", head: true })
+      .eq("periode_id", peserta.periode_id)
+      .eq("siswa_id", peserta.siswa_id)
+      .in("kelas_id", penugasanKelasIds);
+    if (kelasCocok && kelasCocok > 0) return true;
+  }
+
+  return false;
 }
 
 export async function requireNilaiPeserta(pesertaProgramId: string): Promise<CurrentUser> {

@@ -235,7 +235,9 @@ export const STATUS_RAPOR_LABEL: Record<StatusRapor, string> = {
 export type RaporRingkas = {
   peserta_program_id: string;
   siswa_nama: string;
+  kelas_id: string | null;
   kelas_nama: string | null;
+  kelompok_id: string | null;
   status: StatusRapor | null;
   nilai_akhir: number | null;
   predikat: PredikatKode | null;
@@ -259,7 +261,9 @@ export async function getRaporProgram(programId: string, periodeId: string): Pro
     return {
       peserta_program_id: p.id,
       siswa_nama: p.siswa.nama,
+      kelas_id: p.kelas_id,
       kelas_nama: p.kelas_nama,
+      kelompok_id: p.kelompok_id,
       status: (r?.status as StatusRapor | undefined) ?? null,
       nilai_akhir: r?.nilai_akhir ?? null,
       predikat: (r?.predikat as PredikatKode | null | undefined) ?? null,

@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth";
 import { getPeriodeList, labelPeriode } from "@/lib/data/master";
-import { getProgramByKode } from "@/lib/data/program";
+import { getIzinAksesGuru, getProgramByKode } from "@/lib/data/program";
 import { getRaporProgram, STATUS_RAPOR_LABEL, type StatusRapor } from "@/lib/data/rapor";
 import { prosesMassalKunci } from "./actions";
 
@@ -55,7 +55,19 @@ async function Isi({
     daftarPeriode.find((p) => p.aktif) ??
     daftarPeriode[0];
 
-  const baris = await getRaporProgram(program.id, dipilih.id);
+  const izinAkses =
+    user.role === "guru"
+      ? await getIzinAksesGuru(program.id, dipilih.id, user.id)
+      : { semua: true, kelompokIds: [], kelasIds: [] };
+
+  const semuaBaris = await getRaporProgram(program.id, dipilih.id);
+  const baris = izinAkses.semua
+    ? semuaBaris
+    : semuaBaris.filter((b) => {
+        if (b.kelompok_id && izinAkses.kelompokIds.includes(b.kelompok_id)) return true;
+        if (b.kelas_id && izinAkses.kelasIds.includes(b.kelas_id)) return true;
+        return false;
+      });
 
   return (
     <>

@@ -6,9 +6,9 @@ import { z } from "zod";
 import { gagal, pesanError, sukses, type ActionState } from "@/lib/action";
 import { getCurrentUser, requireNilaiPeserta } from "@/lib/auth";
 import { getIndikatorProgram } from "@/lib/data/indikator";
-import { filterBarisKelompok } from "@/lib/data/nilai";
+import { filterBarisIzin } from "@/lib/data/nilai";
 import { parseNilaiSheet } from "@/lib/nilai-import";
-import { getKelompokIzinGuru, getPesertaProgram } from "@/lib/data/program";
+import { getIzinAksesGuru, getPesertaProgram } from "@/lib/data/program";
 import { createClient } from "@/lib/supabase/server";
 
 const nilaiSchema = z.coerce.number().int().min(0, "Nilai 0-100").max(100, "Nilai 0-100");
@@ -64,13 +64,15 @@ export async function importNilaiExcel(
   const sheet = workbook.worksheets[0];
   if (!sheet) return gagal("File Excel kosong");
 
-  const [indikatorSemua, kelompokIzin, semuaPeserta] = await Promise.all([
+  const [indikatorSemua, izinAkses, semuaPeserta] = await Promise.all([
     getIndikatorProgram(programId, periodeId),
-    user.role === "guru" ? getKelompokIzinGuru(programId, periodeId, user.id) : Promise.resolve("semua" as const),
+    user.role === "guru"
+      ? getIzinAksesGuru(programId, periodeId, user.id)
+      : Promise.resolve({ semua: true, kelompokIds: [], kelasIds: [] }),
     getPesertaProgram(programId, periodeId),
   ]);
   const indikatorAktif = indikatorSemua.filter((i) => i.aktif).map((i) => ({ id: i.id, nama: i.nama }));
-  const pesertaDiizinkan = filterBarisKelompok(semuaPeserta, kelompokIzin);
+  const pesertaDiizinkan = filterBarisIzin(semuaPeserta, izinAkses);
   const idPesertaPerNis = new Map(pesertaDiizinkan.map((p) => [p.siswa.nis, p.id]));
 
   const hasil = parseNilaiSheet(sheet, indikatorAktif);

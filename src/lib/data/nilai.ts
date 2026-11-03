@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getIndikatorProgram, type Indikator, type TemplateDeskripsi, type PredikatKode } from "@/lib/data/indikator";
-import { getPesertaProgram, type PesertaProgram } from "@/lib/data/program";
+import { getPesertaProgram, type PesertaProgram, type IzinAksesGuru } from "@/lib/data/program";
 
 export type NilaiSel = { nilai: number; capaian_override: string | null; capaian_override_terjemahan: string | null };
 
@@ -77,7 +77,4 @@ export async function getGridNilai(
   };
 }
 
-/** Batasi baris ke kelompok yang diizinkan (hasil `getKelompokIzinGuru`) — dipakai di halaman grid, unduh, dan import. */
-export function filterBarisKelompok<T extends { kelompok_id: string | null }>(baris: T[], kelompokIzin: "semua" | string[]): T[] {
-  return kelompokIzin === "semua" ? baris : baris.filter((b) => b.kelompok_id !== null && kelompokIzin.includes(b.kelompok_id));
-}
+export { filterBarisKelompok, filterBarisIzin } from "./filter-izin";
