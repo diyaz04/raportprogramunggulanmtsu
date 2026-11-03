@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { Role } from "@/lib/auth";
@@ -60,7 +61,7 @@ function ambil<T>(data: T | null, error: { message: string } | null, konteks: st
 }
 
 // ===== Periode =====
-export async function getPeriodeList(): Promise<Periode[]> {
+export const getPeriodeList = cache(async (): Promise<Periode[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("periode")
@@ -68,9 +69,9 @@ export async function getPeriodeList(): Promise<Periode[]> {
     .order("tahun_ajaran", { ascending: false })
     .order("semester", { ascending: false });
   return ambil(data, error, "Gagal memuat periode") ?? [];
-}
+});
 
-export async function getPeriodeAktif(): Promise<Periode | null> {
+export const getPeriodeAktif = cache(async (): Promise<Periode | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("periode")
@@ -78,7 +79,7 @@ export async function getPeriodeAktif(): Promise<Periode | null> {
     .eq("aktif", true)
     .maybeSingle();
   return ambil(data, error, "Gagal memuat periode aktif");
-}
+});
 
 // ===== Kelas =====
 export async function getKelasByPeriode(periodeId: string): Promise<KelasDenganJumlah[]> {
@@ -180,7 +181,7 @@ export async function getProfilList(): Promise<Profil[]> {
 }
 
 // ===== Pengaturan =====
-export async function getPengaturan(): Promise<Pengaturan> {
+export const getPengaturan = cache(async (): Promise<Pengaturan> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("pengaturan")
@@ -190,14 +191,14 @@ export async function getPengaturan(): Promise<Pengaturan> {
     .eq("id", true)
     .single();
   return ambil(data, error, "Gagal memuat pengaturan");
-}
+});
 
 /** Dipanggil dari tempat yang bisa diakses TANPA login (halaman publik, favicon) — nggak boleh sampai nge-crash. */
-export async function getPengaturanAman(): Promise<Pengaturan | null> {
+export const getPengaturanAman = cache(async (): Promise<Pengaturan | null> => {
   if (!isSupabaseConfigured) return null;
   try {
     return await getPengaturan();
   } catch {
     return null;
   }
-}
+});

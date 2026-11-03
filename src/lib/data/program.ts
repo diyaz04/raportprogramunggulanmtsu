@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 // Tipe ditulis manual (belum memakai `supabase gen types`).
@@ -62,11 +63,11 @@ function ambil<T>(data: T | null, error: { message: string } | null, konteks: st
 }
 
 // ===== Rumpun & Program =====
-export async function getRumpunList(): Promise<Rumpun[]> {
+export const getRumpunList = cache(async (): Promise<Rumpun[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase.from("rumpun_program").select("id, kode, nama, urutan").order("urutan");
   return ambil(data, error, "Gagal memuat rumpun") ?? [];
-}
+});
 
 export async function getProgramList(periodeId: string): Promise<ProgramDenganJumlah[]> {
   const supabase = await createClient();
@@ -102,7 +103,7 @@ export async function getProgramList(periodeId: string): Promise<ProgramDenganJu
     .sort((a, b) => a.rumpun.urutan - b.rumpun.urutan || a.urutan - b.urutan);
 }
 
-export async function getProgramByKode(kode: string): Promise<ProgramDenganRumpun | null> {
+export const getProgramByKode = cache(async (kode: string): Promise<ProgramDenganRumpun | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("program")
@@ -110,7 +111,7 @@ export async function getProgramByKode(kode: string): Promise<ProgramDenganRumpu
     .eq("kode", kode)
     .maybeSingle();
   return ambil(data, error, "Gagal memuat program") as unknown as ProgramDenganRumpun | null;
-}
+});
 
 // ===== Kelompok =====
 export async function getKelompokProgram(programId: string, periodeId: string): Promise<Kelompok[]> {
@@ -209,7 +210,7 @@ export async function getProfilAktif(): Promise<GuruRingkas[]> {
 }
 
 /** Program-program (id) yang guru ini ditugaskan padanya, pada periode tertentu. */
-export async function getProgramIdUntukGuru(guruId: string, periodeId: string): Promise<string[]> {
+export const getProgramIdUntukGuru = cache(async (guruId: string, periodeId: string): Promise<string[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("penugasan_guru")
@@ -218,7 +219,7 @@ export async function getProgramIdUntukGuru(guruId: string, periodeId: string): 
     .eq("guru_id", guruId);
   const rows = ambil(data, error, "Gagal memuat penugasan guru") ?? [];
   return [...new Set(rows.map((r) => r.program_id))];
-}
+});
 
 /** "semua" = guru ditugaskan ke seluruh program; array = hanya kelompok-kelompok ini yang boleh diakses. */
 export async function getKelompokIzinGuru(

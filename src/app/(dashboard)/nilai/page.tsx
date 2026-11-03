@@ -58,6 +58,7 @@ async function Isi({ searchParams }: { searchParams: PageProps<"/nilai">["search
             <Link
               key={p.id}
               href={`/nilai/${p.kode}`}
+              prefetch={true}
               className="group flex items-center justify-between gap-3 rounded-xl border p-4 transition-colors hover:border-foreground/20 hover:bg-muted/40"
             >
               <div className="grid gap-1">

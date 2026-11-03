@@ -26,6 +26,7 @@ export function ProgramSubnav({ kode, jenis }: { kode: string; jenis: "standar" 
           <Link
             key={item.href}
             href={item.href}
+            prefetch={true}
             className={cn(
               "border-b-2 px-3 py-2 text-sm font-medium transition-colors",
               active

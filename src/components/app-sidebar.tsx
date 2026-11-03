@@ -71,6 +71,7 @@ export function AppSidebar({
       <SidebarHeader>
         <Link
           href="/dashboard"
+          prefetch={true}
           className="flex flex-col gap-2 rounded-lg p-2 transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:items-center"
         >
           <div className="flex items-center gap-2">
@@ -105,7 +106,7 @@ export function AppSidebar({
                       <SidebarMenuButton
                         isActive={active}
                         tooltip={item.title}
-                        render={<Link href={item.href} />}
+                        render={<Link href={item.href} prefetch={true} />}
                       >
                         <Icon />
                         <span>{item.title}</span>

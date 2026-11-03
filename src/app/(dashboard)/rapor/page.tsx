@@ -55,6 +55,7 @@ async function Isi({ searchParams }: { searchParams: PageProps<"/rapor">["search
             <Link
               key={p.id}
               href={`/rapor/${p.kode}`}
+              prefetch={true}
               className="group flex items-center justify-between gap-3 rounded-xl border p-4 transition-colors hover:border-foreground/20 hover:bg-muted/40"
             >
               <div className="grid gap-1">

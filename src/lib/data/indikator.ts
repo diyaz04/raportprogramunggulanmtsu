@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export type PredikatKode = "A" | "B" | "C" | "D" | "SARAN";
@@ -36,7 +37,7 @@ function ambil<T>(data: T | null, error: { message: string } | null, konteks: st
   return data as T;
 }
 
-export async function getSkalaPredikatGlobal(): Promise<SkalaPredikat[]> {
+export const getSkalaPredikatGlobal = cache(async (): Promise<SkalaPredikat[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("skala_predikat")
@@ -44,7 +45,7 @@ export async function getSkalaPredikatGlobal(): Promise<SkalaPredikat[]> {
     .is("program_id", null)
     .order("kode");
   return (ambil(data, error, "Gagal memuat skala predikat") ?? []) as SkalaPredikat[];
-}
+});
 
 export async function getIndikatorProgram(programId: string, periodeId: string): Promise<Indikator[]> {
   const supabase = await createClient();
