@@ -25,13 +25,17 @@ async function prosesUploadFoto(formData: FormData, userId: string): Promise<str
   const hapusFoto = formData.get("hapus_foto") === "1";
   if (hapusFoto) return null;
 
+  // Jika sudah ada URL hasil upload langsung dari browser (client-side upload) atau input URL
+  const urlInput = String(formData.get("foto_url") ?? "").trim();
+  if (urlInput) return urlInput;
+
   const file = formData.get("foto_file") as File | null;
   if (file && file.size > 0) {
     if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) {
       throw new Error("Format foto harus PNG, JPG, WebP, atau GIF");
     }
-    if (file.size > 3 * 1024 * 1024) {
-      throw new Error("Ukuran file foto maksimal 3 MB");
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error("Ukuran file foto maksimal 10 MB");
     }
 
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
@@ -59,9 +63,6 @@ async function prosesUploadFoto(formData: FormData, userId: string): Promise<str
     const { data } = supabase.storage.from("guru").getPublicUrl(path);
     return data.publicUrl;
   }
-
-  const urlInput = String(formData.get("foto_url") ?? "").trim();
-  if (urlInput) return urlInput;
 
   return undefined;
 }
