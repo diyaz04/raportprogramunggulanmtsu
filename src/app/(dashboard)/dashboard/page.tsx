@@ -5,13 +5,14 @@ import { EmptyState } from "@/components/page-header";
 import { PeriodeSelect } from "@/components/periode-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AktivitasTerbaru } from "@/components/dashboard/aktivitas-terbaru";
+import { DewanGuruSection } from "@/components/dashboard/dewan-guru-section";
 import { HeroBanner } from "@/components/dashboard/hero-banner";
 import { InfoSistemCard, type InfoBaris } from "@/components/dashboard/info-sistem-card";
 import { ProgramProgressCard } from "@/components/dashboard/program-progress-card";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { StatistikChart, type StatistikBar } from "@/components/dashboard/statistik-chart";
-import { getCurrentUser } from "@/lib/auth";
-import { getAktivitasTerbaru, getStatistikSekolah, getTuntasPerProgram } from "@/lib/data/dashboard";
+import { ROLE_LABEL, getCurrentUser } from "@/lib/auth";
+import { getAktivitasTerbaru, getDewanGuruDashboard, getStatistikSekolah, getTuntasPerProgram } from "@/lib/data/dashboard";
 import { getPengaturan, getPeriodeList, labelPeriode } from "@/lib/data/master";
 import { getProgramIdUntukGuru, getProgramList } from "@/lib/data/program";
 import { getProgresProgram } from "@/lib/data/rapor";
@@ -42,7 +43,17 @@ export default function DashboardPage(props: PageProps<"/dashboard">) {
 async function Hero() {
   const user = await getCurrentUser();
   const pengaturan = await ambilPengaturanAman();
-  return <HeroBanner nama={user.nama} namaMadrasah={pengaturan?.nama_madrasah ?? "MTsS KH. A. Wahab Muhsin Sukahideng"} motto={MOTTO} />;
+  return (
+    <HeroBanner
+      nama={user.nama}
+      role={user.role}
+      roleLabel={ROLE_LABEL[user.role]}
+      nip={user.nip}
+      fotoUrl={user.foto_url}
+      namaMadrasah={pengaturan?.nama_madrasah ?? "MTsS KH. A. Wahab Muhsin Sukahideng"}
+      motto={MOTTO}
+    />
+  );
 }
 
 async function ambilPengaturanAman() {
@@ -84,6 +95,7 @@ async function Konten({ searchParams }: { searchParams: PageProps<"/dashboard">[
     const totalTerisi = progres.reduce((n, p) => n + p.nilaiTerisi, 0);
     const totalNilai = progres.reduce((n, p) => n + p.nilaiTotal, 0);
     const rataProgres = totalNilai > 0 ? Math.round((totalTerisi / totalNilai) * 100) : 0;
+    const dewanGuru = await getDewanGuruDashboard(dipilih.id);
 
     return (
       <div className="grid gap-6">
@@ -116,14 +128,22 @@ async function Konten({ searchParams }: { searchParams: PageProps<"/dashboard">[
             </div>
           )}
         </div>
+
+        {/* Section Dewan Guru & Pembimbing Program */}
+        <DewanGuruSection
+          dewanGuru={dewanGuru}
+          periodeLabel={labelPeriode(dipilih)}
+          isAdmin={false}
+        />
       </div>
     );
   }
 
-  const [statistik, tuntasPerProgram, aktivitas] = await Promise.all([
+  const [statistik, tuntasPerProgram, aktivitas, dewanGuru] = await Promise.all([
     getStatistikSekolah(dipilih.id),
     getTuntasPerProgram(program.map((p) => p.id), dipilih.id),
     getAktivitasTerbaru(),
+    getDewanGuruDashboard(dipilih.id),
   ]);
 
   const tuntasById = new Map(tuntasPerProgram.map((t) => [t.programId, t]));
@@ -186,6 +206,13 @@ async function Konten({ searchParams }: { searchParams: PageProps<"/dashboard">[
           </div>
         </div>
       </div>
+
+      {/* Section Dewan Guru & Pembimbing Program */}
+      <DewanGuruSection
+        dewanGuru={dewanGuru}
+        periodeLabel={labelPeriode(dipilih)}
+        isAdmin={user.role === "admin"}
+      />
     </div>
   );
 }

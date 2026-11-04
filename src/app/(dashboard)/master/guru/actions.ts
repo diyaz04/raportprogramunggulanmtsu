@@ -21,6 +21,51 @@ const profilSchema = z.object({
 
 const sandiSchema = z.string().min(8, "Kata sandi minimal 8 karakter").max(72, "Kata sandi maksimal 72 karakter");
 
+async function prosesUploadFoto(formData: FormData, userId: string): Promise<string | null | undefined> {
+  const hapusFoto = formData.get("hapus_foto") === "1";
+  if (hapusFoto) return null;
+
+  const file = formData.get("foto_file") as File | null;
+  if (file && file.size > 0) {
+    if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) {
+      throw new Error("Format foto harus PNG, JPG, WebP, atau GIF");
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      throw new Error("Ukuran file foto maksimal 3 MB");
+    }
+
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `foto-${userId}-${Date.now()}.${ext}`;
+
+    const supabase = adaSecretKey ? createAdminClient() : await createClient();
+
+    const { error: errGuru } = await supabase.storage
+      .from("guru")
+      .upload(path, file, { contentType: file.type, upsert: true });
+
+    if (errGuru) {
+      // Fallback ke bucket 'pengaturan' jika bucket 'guru' belum dibuat di storage
+      const { error: errPengaturan } = await supabase.storage
+        .from("pengaturan")
+        .upload(`guru-${path}`, file, { contentType: file.type, upsert: true });
+
+      if (errPengaturan) {
+        throw new Error(`Gagal mengunggah foto: ${errGuru.message}`);
+      }
+      const { data } = supabase.storage.from("pengaturan").getPublicUrl(`guru-${path}`);
+      return data.publicUrl;
+    }
+
+    const { data } = supabase.storage.from("guru").getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  const urlInput = String(formData.get("foto_url") ?? "").trim();
+  if (urlInput) return urlInput;
+
+  return undefined;
+}
+
 export async function simpanProfil(id: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const me = await requireRole("admin");
 
@@ -38,12 +83,35 @@ export async function simpanProfil(id: string, _prev: ActionState, formData: For
     return gagal("Anda tidak bisa menurunkan role atau menonaktifkan akun Anda sendiri.");
   }
 
+  let fotoUrl: string | null | undefined;
+  try {
+    fotoUrl = await prosesUploadFoto(formData, id);
+  } catch (err) {
+    return gagal(err instanceof Error ? err.message : "Gagal memproses foto");
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase.from("profiles").update({ ...parsed.data, aktif }).eq("id", id);
+  const updatePayload: Record<string, unknown> = { ...parsed.data, aktif };
+  if (fotoUrl !== undefined) {
+    updatePayload.foto_url = fotoUrl;
+  }
+
+  let { error } = await supabase.from("profiles").update(updatePayload).eq("id", id);
+  if (error && /foto_url/i.test(error.message)) {
+    delete updatePayload.foto_url;
+    const retry = await supabase.from("profiles").update(updatePayload).eq("id", id);
+    error = retry.error;
+    if (!error) {
+      revalidatePath("/master/guru");
+      revalidatePath("/dashboard");
+      return sukses("Profil disimpan (Catatan: jalankan file migrasi SQL agar foto dapat disimpan)");
+    }
+  }
   if (error) return gagal(pesanError(error));
 
   revalidatePath("/master/guru");
-  return sukses();
+  revalidatePath("/dashboard");
+  return sukses("Profil berhasil diperbarui");
 }
 
 export async function buatAkun(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -76,9 +144,26 @@ export async function buatAkun(_prev: ActionState, formData: FormData): Promise<
     return gagal(sudahAda ? "Email tersebut sudah terdaftar." : `Gagal membuat akun: ${error?.message ?? "tidak diketahui"}`);
   }
 
+  let fotoUrl: string | null | undefined;
+  try {
+    fotoUrl = await prosesUploadFoto(formData, data.user.id);
+  } catch {
+    // Foto opsional saat pembuatan akun awal
+  }
+
   // Trigger database sudah membuat profil (nonaktif); lengkapi dan aktifkan.
   const supabase = await createClient();
-  const { error: e2 } = await supabase.from("profiles").update({ ...profil.data, aktif: true }).eq("id", data.user.id);
+  const updatePayload: Record<string, unknown> = { ...profil.data, aktif: true };
+  if (fotoUrl !== undefined) {
+    updatePayload.foto_url = fotoUrl;
+  }
+
+  let { error: e2 } = await supabase.from("profiles").update(updatePayload).eq("id", data.user.id);
+  if (e2 && /foto_url/i.test(e2.message)) {
+    delete updatePayload.foto_url;
+    const retry = await supabase.from("profiles").update(updatePayload).eq("id", data.user.id);
+    e2 = retry.error;
+  }
   if (e2) {
     return gagal(
       `Akun dibuat, tetapi profil belum bisa diaktifkan (${e2.message}). Atur lewat tombol Ubah di daftar.`,
@@ -86,6 +171,7 @@ export async function buatAkun(_prev: ActionState, formData: FormData): Promise<
   }
 
   revalidatePath("/master/guru");
+  revalidatePath("/dashboard");
   return sukses("Akun berhasil dibuat dan diaktifkan");
 }
 

@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ROLE_LABEL, requireRole } from "@/lib/auth";
 import { getProfilList, type Profil } from "@/lib/data/master";
 import { adaSecretKey } from "@/lib/supabase/admin";
+import { inisialNama } from "@/lib/utils";
 import { buatAkun, resetSandi, simpanProfil } from "./actions";
 import { GuruFields } from "./guru-fields";
 
@@ -98,8 +99,25 @@ function Daftar({ me, profil, bisaBuatAkun }: { me: string; profil: Profil[]; bi
           {profil.map((p) => (
             <TableRow key={p.id}>
               <TableCell className="font-medium">
-                {p.nama}
-                {p.id === me ? <span className="ml-2 text-xs text-muted-foreground">(Anda)</span> : null}
+                <div className="flex items-center gap-3">
+                  <div className="relative size-10 shrink-0 overflow-hidden rounded-xl border-2 border-emerald-500/20 bg-muted shadow-xs">
+                    {p.foto_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- foto profil guru di tabel
+                      <img src={p.foto_url} alt={p.nama} className="size-full object-cover object-top" />
+                    ) : (
+                      <div className="flex size-full items-center justify-center bg-gradient-to-br from-emerald-600 to-teal-800 text-xs font-bold text-white">
+                        {inisialNama(p.nama)}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-foreground">
+                      {p.nama}
+                      {p.id === me ? <span className="ml-2 text-xs font-normal text-muted-foreground">(Anda)</span> : null}
+                    </div>
+                    {p.nip ? <div className="text-[11px] font-mono text-muted-foreground">NIP. {p.nip}</div> : null}
+                  </div>
+                </div>
               </TableCell>
               <TableCell className="text-muted-foreground">{p.email ?? "—"}</TableCell>
               <TableCell>{p.nip ?? "—"}</TableCell>

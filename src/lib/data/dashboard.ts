@@ -1,4 +1,5 @@
 import "server-only";
+import { ROLE_LABEL, type Role } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getIndikatorProgram } from "@/lib/data/indikator";
 import { getPesertaProgram } from "@/lib/data/program";
@@ -125,4 +126,87 @@ export async function getAktivitasTerbaru(limit = 6): Promise<AktivitasItem[]> {
       waktu: r.waktu,
     };
   });
+}
+
+export type { DewanGuruCardData } from "@/lib/auth-types";
+import type { DewanGuruCardData } from "@/lib/auth-types";
+
+export async function getDewanGuruDashboard(periodeId?: string): Promise<DewanGuruCardData[]> {
+  const supabase = await createClient();
+
+  // Ambil profil aktif
+  let profiles: { id: string; nama: string; nip: string | null; email: string | null; role: string; foto_url?: string | null }[] = [];
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, nama, nip, email, role, aktif, foto_url")
+      .eq("aktif", true)
+      .order("nama");
+
+    if (error) {
+      if (/foto_url/i.test(error.message)) {
+        const fb = await supabase
+          .from("profiles")
+          .select("id, nama, nip, email, role, aktif")
+          .eq("aktif", true)
+          .order("nama");
+        profiles = (fb.data ?? []).map((p) => ({ ...p, foto_url: null }));
+      }
+    } else {
+      profiles = data ?? [];
+    }
+  } catch {
+    profiles = [];
+  }
+
+  // Ambil penugasan program pada periode ini jika ada periodeId
+  const programMap = new Map<string, { id: string; kode: string; nama: string }[]>();
+  if (periodeId && profiles.length > 0) {
+    try {
+      const { data: penugasan } = await supabase
+        .from("penugasan_guru")
+        .select("guru_id, program:program_id(id, kode, nama)")
+        .eq("periode_id", periodeId);
+
+      for (const p of (penugasan ?? []) as unknown as {
+        guru_id: string;
+        program: { id: string; kode: string; nama: string } | null;
+      }[]) {
+        if (!p.program) continue;
+        const list = programMap.get(p.guru_id) ?? [];
+        if (!list.some((x) => x.id === p.program?.id)) {
+          list.push(p.program);
+        }
+        programMap.set(p.guru_id, list);
+      }
+    } catch {
+      // biarkan programMap kosong jika query penugasan gagal
+    }
+  }
+
+  // Urutan prioritas role: kepala madrasah -> koordinator -> guru -> admin
+  const urutanRole: Record<string, number> = {
+    kepala: 1,
+    koordinator: 2,
+    guru: 3,
+    admin: 4,
+  };
+
+  return profiles
+    .map((p) => ({
+      id: p.id,
+      nama: p.nama,
+      nip: p.nip,
+      email: p.email,
+      role: p.role as Role,
+      roleLabel: ROLE_LABEL[p.role as Role] ?? p.role,
+      foto_url: p.foto_url ?? null,
+      programs: programMap.get(p.id) ?? [],
+    }))
+    .sort((a, b) => {
+      const rA = urutanRole[a.role] ?? 99;
+      const rB = urutanRole[b.role] ?? 99;
+      if (rA !== rB) return rA - rB;
+      return a.nama.localeCompare(b.nama, "id");
+    });
 }

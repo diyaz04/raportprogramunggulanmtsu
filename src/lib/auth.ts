@@ -1,16 +1,10 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { ROLE_LABEL, type Role } from "@/lib/auth-types";
 import { createClient } from "@/lib/supabase/server";
 
-export type Role = "admin" | "koordinator" | "guru" | "kepala";
-
-export const ROLE_LABEL: Record<Role, string> = {
-  admin: "Admin / Operator",
-  koordinator: "Koordinator Program",
-  guru: "Guru Program",
-  kepala: "Kepala Madrasah",
-};
+export { ROLE_LABEL, type Role } from "@/lib/auth-types";
 
 export type CurrentUser = {
   id: string;
@@ -18,6 +12,7 @@ export type CurrentUser = {
   nama: string;
   nip: string | null;
   role: Role;
+  foto_url: string | null;
 };
 
 /**
@@ -35,11 +30,22 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser> => {
 
   if (!claims) redirect("/login");
 
-  const { data: profile, error } = await supabase
+  let { data: profile, error } = await supabase
     .from("profiles")
-    .select("nama, nip, role, aktif")
+    .select("nama, nip, role, aktif, foto_url")
     .eq("id", claims.sub)
     .maybeSingle();
+
+  // Fallback aman jika kolom foto_url belum dieksekusi di database
+  if (error && /foto_url/i.test(error.message)) {
+    const fb = await supabase
+      .from("profiles")
+      .select("nama, nip, role, aktif")
+      .eq("id", claims.sub)
+      .maybeSingle();
+    profile = fb.data ? { ...fb.data, foto_url: null } : null;
+    error = fb.error;
+  }
 
   // Error query (mis. tabel belum ada / RLS) beda dengan "profil tidak ada": jangan disamarkan.
   if (error) throw new Error(`Gagal membaca profil: ${error.message}`);
@@ -53,6 +59,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser> => {
     nama: profile.nama,
     nip: profile.nip,
     role: profile.role as Role,
+    foto_url: (profile as { foto_url?: string | null }).foto_url ?? null,
   };
 });
 

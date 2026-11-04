@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BookOpenCheck, ChevronsUpDown, LogOut } from "lucide-react";
 import { signOut } from "@/app/(auth)/actions";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +32,7 @@ export type SidebarUser = {
   email: string;
   role: Role;
   roleLabel: string;
+  fotoUrl?: string | null;
   /** Guru ditugaskan ke program Tahfidz pada periode aktif? Menentukan apakah menu "Hafalan Tahfidz" tampil. */
   bisaTahfidz: boolean;
 };
@@ -139,7 +140,10 @@ export function AppSidebar({
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
-                <Avatar className="size-8 rounded-lg">
+                <Avatar className="size-8 rounded-lg overflow-hidden">
+                  {user.fotoUrl ? (
+                    <AvatarImage src={user.fotoUrl} alt={user.nama} className="object-cover" />
+                  ) : null}
                   <AvatarFallback className="rounded-lg bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground">
                     {initials(user.nama)}
                   </AvatarFallback>

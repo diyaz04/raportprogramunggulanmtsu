@@ -35,6 +35,7 @@ export type Profil = {
   email: string | null;
   role: Role;
   aktif: boolean;
+  foto_url?: string | null;
 };
 
 export type Pengaturan = {
@@ -172,11 +173,22 @@ export async function getSiswaPage(opts: { q?: string; halaman: number; periodeA
 // ===== Guru & akun =====
 export async function getProfilList(): Promise<Profil[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("profiles")
-    .select("id, nama, nip, email, role, aktif")
+    .select("id, nama, nip, email, role, aktif, foto_url")
     .order("aktif", { ascending: false })
     .order("nama");
+
+  if (error && /foto_url/i.test(error.message)) {
+    const fb = await supabase
+      .from("profiles")
+      .select("id, nama, nip, email, role, aktif")
+      .order("aktif", { ascending: false })
+      .order("nama");
+    data = fb.data ? fb.data.map((r) => ({ ...r, foto_url: null })) : null;
+    error = fb.error;
+  }
+
   return (ambil(data, error, "Gagal memuat akun") ?? []) as Profil[];
 }
 

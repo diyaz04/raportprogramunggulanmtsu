@@ -46,6 +46,7 @@ async function SidebarWithUser() {
         email: user.email,
         role: user.role,
         roleLabel: ROLE_LABEL[user.role],
+        fotoUrl: user.foto_url,
         bisaTahfidz,
       }}
       logoKiriUrl={pengaturan?.logo_kiri_url ?? null}
